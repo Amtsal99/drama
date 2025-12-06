@@ -162,7 +162,22 @@ usafacts.org
 ```
 
 ## 📄 Citation
-*To be updated upon acceptance.*
+```bibtex
+@article{Hu_2025,
+  title        = {{\textsc{Drama}}: Unifying Data Retrieval and Analysis for Open-Domain Analytic Queries},
+  author       = {Hu, Chuxuan and Yang, Maxwell and Weiland, James and Lim, Yeji and Palawala, Suhas and Kang, Daniel},
+  journal      = {Proceedings of the ACM on Management of Data},
+  volume       = {3},
+  number       = {6},
+  pages        = {1--28},
+  year         = {2025},
+  month        = dec,
+  publisher    = {Association for Computing Machinery (ACM)},
+  ISSN         = {2836-6573},
+  DOI          = {10.1145/3769781},
+  url          = {https://doi.org/10.1145/3769781}
+}
+```
 
 ---
 
