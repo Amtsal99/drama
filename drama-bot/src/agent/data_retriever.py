@@ -3,7 +3,8 @@ from agent.utils import BLACKLIST
 from .subagents import WebBrowser, DataTransformer, WebAugmenter
 
 from io import StringIO
-from openai import OpenAI
+# from openai import OpenAI
+import google.generativeai as genai
 
 import os
 import re
@@ -11,30 +12,31 @@ import pandas as pd
 import ast
 import logging
 
+from agent.subagents.gemini_client import get_gemini_model
+
 class DataRetriever:
-    def __init__(self, task, api_key, api_model, org, output_path):
+    def __init__(self, task, api_key, api_model, output_path):
         self.task = task
         self.output_path = output_path
         self.api_model = api_model
-        self.client = OpenAI(api_key=api_key, organization=org)
+        # self.client = OpenAI(api_key=api_key, organization=org)
+        self.client = get_gemini_model(api_model)
         self.api_key = api_key
-        self.org = org
+        # self.org = org
 
         # initialization of subagents
         self.web_browser = WebBrowser(
-            api_key=api_key,
             api_model=api_model,
+            client=self.client,
             output_dir=self.output_path,
-            org=org,
             task=task
         )
         self.data_transformer = DataTransformer(
             api_key=api_key,
             api_model=api_model,
+            client=self.client,
             output_path=self.output_path,
-            org=org,
-            task=task,
-            client=self.client
+            task=task
         )
         self.web_augmenter = WebAugmenter(task=task, client=self.client, output_path=output_path)
 
@@ -81,6 +83,7 @@ class DataRetriever:
             if data_string and data_string.strip():
                 data = pd.read_csv(StringIO(data_string))
                 if not data.empty:
+                    # same dir n name with data transformer which saves it as 'T
                     data.to_csv(file_path, index=False)
                     return search_path + augment_data_path
         

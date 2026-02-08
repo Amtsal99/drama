@@ -11,6 +11,7 @@ packages = [{ include = "agent", from = "src" }]
 python = "^3.10"
 selenium = "4.15.2"
 openai = "^1.55.3"
+google-generativeai = "^0.8.5"
 numpy = "^1.25.0"   
 pillow = "^10.0.1"
 python-dotenv = "^1.0.1"
@@ -20,6 +21,7 @@ pytesseract = "^0.3.13"
 scikit-learn = "^1.6.1"
 torch = "^2.6.0"
 transformers = "^4.51.2"
+requests = "^2.32.5"
 
 [build-system]
 requires = ["poetry-core"]

@@ -14,15 +14,15 @@ import logging
 
 from agent.prompts import RETRIEVER_FILE_SELECTION_TASK_DESC, RETRIEVER_JOIN_TABLE_TASK_DESC, RETRIEVER_PDF_TASK_DESC, RETRIEVER_PLAN_TASK_DESC
 from agent.utils import COST_DICT
+from .gemini_client import get_gemini_model
 
 class DataTransformer:
-    def __init__(self, task, api_key, api_model, org, output_path, client):
+    def __init__(self, task, api_key, api_model, output_path, client):
         self.task = task
         self.client = client
         self.api_model = api_model
         self.output_path = output_path
         self.api_key = api_key
-        self.org = org
         self.checked_files = []
     
     def run(self, query):
@@ -85,6 +85,7 @@ class DataTransformer:
         return exec_globals["result_table"]
     
     def check_enough_info(self, query):
+        # same dir n name with data browser csv file 
         if os.path.exists(f"{self.output_path}/data.csv"):
             df = pd.read_csv(f"{self.output_path}/data.csv")
             existing_columns = df.columns

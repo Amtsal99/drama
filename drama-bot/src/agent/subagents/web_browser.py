@@ -19,13 +19,15 @@ from selenium.common.exceptions import NoSuchElementException
 from openai import OpenAI
 
 from .utils_webbrowser import get_web_element_rect, encode_image, extract_information, get_webarena_accessibility_tree, clip_message_and_obs
+from .gemini_client import get_gemini_model
 
 from agent.prompts import RETRIEVER_FIND_WEBSITE_TASK_DESC, RETRIEVER_SEARCH_TERM_DESC, RETRIEVER_BROWSE_SYSTEM_PROMPT
 from agent.utils import BLACKLIST, COST_DICT
 
 class WebBrowser:
-    def __init__(self, api_key, api_model, org, output_dir, task):
-        self.client = OpenAI(api_key=api_key, organization=org)
+    def __init__(self, api_model, client, output_dir, task):
+        # self.client = OpenAI(api_key=api_key, organization=org)
+        self.client = client
         self.max_iter = 1
         self.api_model = api_model
         self.output_dir = output_dir
@@ -62,6 +64,7 @@ class WebBrowser:
 
             df = df.drop(columns=["Source"])
 
+            # same dir n name with data transformer
             output_csv_path = f"{self.output_dir}/data.csv"
 
             df.to_csv(output_csv_path, index=False)
@@ -76,6 +79,7 @@ class WebBrowser:
                     for file_name in os.listdir(download_path):
                         full_file_path = os.path.join(download_path, file_name)
                         if os.path.isfile(full_file_path):
+                            # same dir but diff name with data transformer
                             shutil.copy(full_file_path, self.output_dir)
                     return search_path
 
@@ -96,6 +100,7 @@ class WebBrowser:
                 for file_name in os.listdir(self.output_dir):
                         file_path = os.path.join(self.output_dir, file_name)
 
+                        # same dir but diff name with data transformer
                         # Check if the file is a zip file
                         if zipfile.is_zipfile(file_path):
                             print(f"Unzipping: {file_name}")

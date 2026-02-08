@@ -5,7 +5,12 @@ import logging
 import pandas as pd
 import numpy as np
 
+from agent.subagents.gemini_client import init_gemini_client
+
 from agent.drama_bot import DramaBot
+
+# initialize Gemini client
+init_gemini_client(os.getenv('GOOGLE_API_KEY'))
 
 def drama_bot_pipeline(model, task, id, output_path, report_folder):
     def convert_np(obj):
@@ -41,7 +46,7 @@ def drama_bot_pipeline(model, task, id, output_path, report_folder):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="gpt-4o-2024-11-20")
+    parser.add_argument("--model", type=str, default="gemini-2.5-flash")
     parser.add_argument("--task", type=str, default="verification", choices=["verification", "qa"])
     parser.add_argument("--id", type=int, default=1)
     parser.add_argument("--report_folder", type=str, default="reports")

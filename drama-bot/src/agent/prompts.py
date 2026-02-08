@@ -14,7 +14,7 @@ Carefully analyze the visual information to identify the Numerical Label corresp
 4. Wait. Typically used to wait for unfinished webpage processes, with a duration of 5 seconds.
 5. Go back, returning to the previous webpage. You have to choose this for other sources if you saw a verification page.
 6. Google, directly jump to the Google search page. When you can't find information in some websites, try starting over with Google.
-7. Get data. This action should only be chosen when you find the necessary data to {action} the query directly from the webpage; you should return the data in csv format as ```csv ``` (this formatting is mandatory). You should return the minimal information you need, and name the column names very straightforward. Your first column should always be Source, with each row being the source website.
+7. Get data. This action should only be chosen when you find the necessary data to {action} the query DIRECTLY from the webpage; you should return the data in csv format as ```csv ``` (this formatting is mandatory). You should return the minimal information you need, and name the column names very straightforward. Your first column should always be Source, with each row being the source website.
 The numeric values should always be a number rather than a string, you can specify the units (e.g., %) in the column names.
 For example, ```csv Year,Net Increase (%)
 2024, 30

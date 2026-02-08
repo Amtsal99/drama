@@ -19,11 +19,12 @@ class DramaBot:
         self.task = task
 
         load_dotenv()
-        self.openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.openai_org = os.getenv('OPENAI_ORG')
+        # self.openai_api_key = os.getenv('OPENAI_API_KEY')
+        # self.openai_org = os.getenv('OPENAI_ORG')
+        self.google_api_key = os.getenv('GOOGLE_API_KEY')
 
-        self.data_retriever = DataRetriever(task=self.task, api_key=self.openai_api_key, api_model = api_model, org=self.openai_org, output_path=self.output_path)
-        self.data_analyzer = DataAnalyzer(self.task, self.openai_api_key, api_model, self.openai_org, self.output_path)
+        self.data_retriever = DataRetriever(task = self.task, api_key = self.google_api_key, api_model = api_model, output_path = self.output_path)
+        self.data_analyzer = DataAnalyzer(task = self.task, api_key = self.google_api_key, api_model = api_model, output_path = self.output_path)
 
     def run(self, query):
         logging.info(f"📂 Data Retriever Starts")
