@@ -5,7 +5,10 @@ import time
 import re
 import base64
 
-from openai import OpenAI
+# from openai import OpenAI
+import google.generativeai as genai
+from google.generativeai import types
+
 
 SYSTEM_PROMPT = """As an evaluator, you will be presented with three primary components to assist you in your role:
 
@@ -27,13 +30,16 @@ USER_PROMPT = """TASK: <task>
 Result Response: <answer>
 <num> screenshots at the end: """
 
+COST_PER_PROMPT_TOKEN = 3e-07
+COST_PER_COMPLETION_TOKEN = 2.5e-06
+
 
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 
-def auto_eval_by_gpt4v(process_dir, openai_client, api_model, img_num):
+def auto_eval_by_gemini(process_dir, client, api_model, img_num):
     print(f'--------------------- {process_dir} ---------------------')
     res_files = sorted(os.listdir(process_dir))
     with open(os.path.join(process_dir, 'interact_messages.json')) as fr:
@@ -73,8 +79,10 @@ def auto_eval_by_gpt4v(process_dir, openai_client, api_model, img_num):
         b64_img = encode_image(os.path.join(process_dir, png_file[0]))
         whole_content_img.append(
             {
-                'type': 'image_url',
-                'image_url': {"url": f"data:image/png;base64,{b64_img}"}
+                'inline_data': {
+                    'mime_type': 'image/png',
+                    'data': b64_img
+                }
             }
         )
 
@@ -82,26 +90,31 @@ def auto_eval_by_gpt4v(process_dir, openai_client, api_model, img_num):
     user_prompt_tmp = user_prompt_tmp.replace('<answer>', answer_content)
     user_prompt_tmp = user_prompt_tmp.replace('<num>', str(img_num))
     messages = [
-        {'role': 'system', 'content': SYSTEM_PROMPT},
+        {'role': 'system', 'parts': [{"text": SYSTEM_PROMPT}]},
         {
             'role': 'user',
-            'content': [
-                {'type': 'text', 'text': user_prompt_tmp}
+            'parts': [
+                {'text': user_prompt_tmp}
             ]
             + whole_content_img
-            + [{'type': 'text', 'text': "Your verdict:\n"}]
+            + [{'text': "Your verdict:\n"}]
         }
     ]
     while True:
         try:
-            print('Calling gpt4v API to get the auto evaluation......')
-            openai_response = openai_client.chat.completions.create(
-                model=api_model, messages=messages, max_tokens=1000, seed=42, temperature=0
+            print('Calling gemini API to get the auto evaluation......')
+            gen_conf = types.GenerationConfig(
+                temperature=0.0,
+                max_output_tokens=1000,
+                seed=42
             )
-            print('Prompt Tokens:', openai_response.usage.prompt_tokens, ';',
-                  'Completion Tokens:', openai_response.usage.completion_tokens)
-            print('Cost:', openai_response.usage.prompt_tokens/1000 * 0.01
-                  + openai_response.usage.completion_tokens / 1000 * 0.03)
+            response = client.generate_content(
+                messages=messages, 
+                generation_config=gen_conf
+            )
+            print('Prompt Tokens:', response.usage.prompt_tokens, ';',
+                  'Completion Tokens:', response.usage.completion_tokens)
+            print('Cost:', response.usage_metadata.prompt_tokens * COST_PER_PROMPT_TOKEN + response.usage.completion_tokens * COST_PER_COMPLETION_TOKEN)
 
             print('API call complete...')
             break
@@ -115,7 +128,7 @@ def auto_eval_by_gpt4v(process_dir, openai_client, api_model, img_num):
                 exit(0)
             else:
                 time.sleep(10)
-    gpt_4v_res = openai_response.choices[0].message.content
+    gemini_res = response.text
     print_message = messages[1]
     for idx in range(len(print_message['content'])):
         if print_message['content'][idx]['type'] == 'image_url':
@@ -123,10 +136,10 @@ def auto_eval_by_gpt4v(process_dir, openai_client, api_model, img_num):
 
     # print_message[1]['content'][1]['image_url'] = {"url": "data:image/png;base64, b64_img"}
     print(print_message)
-    print(gpt_4v_res)
+    print(gemini_res)
 
-    auto_eval_res = 0 if 'NOT SUCCESS' in gpt_4v_res else 1
-    if 'SUCCESS' not in gpt_4v_res:
+    auto_eval_res = 0 if 'NOT SUCCESS' in gemini_res else 1
+    if 'SUCCESS' not in gemini_res:
         auto_eval_res = None
     print('Auto_eval_res:', auto_eval_res)
     print()
@@ -138,11 +151,11 @@ def main():
     parser.add_argument('--process_dir', type=str, default='results')
     parser.add_argument('--lesson_dir', type=str, default='results')
     parser.add_argument("--api_key", default="key", type=str, help="YOUR_OPENAI_API_KEY")
-    parser.add_argument("--api_model", default="gpt-4-vision-preview", type=str, help="api model name")
+    parser.add_argument("--api_model", default="gemini-2.5-flash", type=str, help="api model name")
     parser.add_argument("--max_attached_imgs", type=int, default=1)
     args = parser.parse_args()
 
-    client = OpenAI(api_key=args.api_key)
+    client = genai.GenerativeModel(model_name=args.api_model, api_key=args.api_key)
     webs = ['Allrecipes', 'Amazon', 'Apple', 'ArXiv', 'BBC News', 'Booking', 'Cambridge Dictionary',
             'Coursera', 'ESPN', 'GitHub', 'Google Flights', 'Google Map', 'Google Search', 'Huggingface', 'Wolfram Alpha']
 
@@ -151,7 +164,7 @@ def main():
         for idx in range(0, 46):
             file_dir = os.path.join(args.process_dir, 'task'+web+'--'+str(idx))
             if os.path.exists(file_dir):
-                response = auto_eval_by_gpt4v(file_dir, client, args.api_model, args.max_attached_imgs)
+                response = auto_eval_by_gemini(file_dir, client, args.api_model, args.max_attached_imgs)
                 web_task_res.append(response)
             else:
                 pass
