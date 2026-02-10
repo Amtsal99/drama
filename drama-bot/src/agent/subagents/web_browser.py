@@ -193,7 +193,11 @@ class WebBrowser:
         else:
             action = "answer"
 
-        messages = [{'role': 'system', 'content': RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST)}]
+        # convert to gemini standard json format
+        messages = [{'role': 'system', 
+                     'parts': [{'text': RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST)}]
+                     }]
+        
         obs_prompt = "Observation: please analyze the attached screenshot and give the Thought and Action. "
 
         init_msg = RETRIEVER_FIND_WEBSITE_TASK_DESC.format(action=action, query=query, search_term=search_term) + obs_prompt
@@ -242,7 +246,7 @@ class WebBrowser:
             else:
                 curr_msg = {
                     'role': 'user',
-                    'content': fail_obs
+                    'parts': [{'text': fail_obs}]
                 }
                 messages.append(curr_msg)
 
@@ -416,41 +420,34 @@ def driver_config(save_accessibility_tree, force_device_scale, headless, downloa
 
 
 def format_msg(it, init_msg, pdf_obs, warn_obs, web_img_b64, web_text):
+    if "base64," in web_img_b64:
+        web_img_b64 = web_img_b64.split("base64,")[1]
+        
+    guidance_text = f"I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"
     if it == 1:
-        init_msg += f"I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"
-        init_msg_format = {
-            'role': 'user',
-            'content': [
-                {'type': 'text', 'text': init_msg},
-            ]
-        }
-        init_msg_format['content'].append({"type": "image_url",
-                                           "image_url": {"url": f"data:image/png;base64,{web_img_b64}"}})
-        return init_msg_format
+        text_content = f"{init_msg}{guidance_text}"
+        
     else:
         if not pdf_obs:
-            curr_msg = {
-                'role': 'user',
-                'content': [
-                    {'type': 'text', 'text': f"Observation:{warn_obs} please analyze the attached screenshot and give the Thought and Action. I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"},
-                    {
-                        'type': 'image_url',
-                        'image_url': {"url": f"data:image/png;base64,{web_img_b64}"}
-                    }
-                ]
-            }
+            text_content = f"Observation:{warn_obs} please analyze the attached screenshot and give the Thought and Action. {guidance_text}"
         else:
-            curr_msg = {
-                'role': 'user',
-                'content': [
-                    {'type': 'text', 'text': f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The screenshot of the current page is also attached, give the Thought and Action. I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"},
-                    {
-                        'type': 'image_url',
-                        'image_url': {"url": f"data:image/png;base64,{web_img_b64}"}
-                    }
-                ]
+            text_content = f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The screenshot of the current page is also attached, give the Thought and Action. {guidance_text}"
+    curr_msg = {
+        'role': 'user',
+        'parts': [
+            {
+                'text': text_content
+            },
+            {
+                'inline_data': {
+                    'mime_type': 'image/png', 
+                    'data': web_img_b64
+                }
             }
-        return curr_msg
+        ]
+    }
+    
+    return curr_msg
 
 
 def format_msg_text_only(it, init_msg, pdf_obs, warn_obs, ac_tree):
