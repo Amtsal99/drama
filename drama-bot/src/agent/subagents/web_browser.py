@@ -19,7 +19,7 @@ from selenium.common.exceptions import NoSuchElementException
 from openai import OpenAI
 
 from .utils_webbrowser import get_web_element_rect, encode_image, extract_information, get_webarena_accessibility_tree, clip_message_and_obs
-from .gemini_client import get_gemini_model
+from .gemini_tool import calculate_gemini_cost, parse_gemini_response
 
 from agent.prompts import RETRIEVER_FIND_WEBSITE_TASK_DESC, RETRIEVER_SEARCH_TERM_DESC, RETRIEVER_BROWSE_SYSTEM_PROMPT
 from agent.utils import BLACKLIST, COST_DICT
@@ -119,26 +119,32 @@ class WebBrowser:
             action = "verify"
         else:
             action = "answer"
-        messages = [
+            
+        # convert to gemini standard json format 
+        contents = [
             {
                 "role": "user",
-                "content": RETRIEVER_SEARCH_TERM_DESC.format(action=action, query=query)
+                "parts": [
+                    {"text" : RETRIEVER_SEARCH_TERM_DESC.format(action=action, query=query)}
+                ]
             }
         ]
 
-        response = self.client.chat.completions.create(
+        response = self.client.generate_content(
             model=self.api_model,
-            messages=messages,
+            content=contents,
         )
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gemini_cost(response, model_name=self.api_model)
+        
+        parts_response = parse_gemini_response(response)
 
-        logging.info(f"Search Term: {response.choices[0].message.content}")
+        logging.info(f"Search Term: {parts_response[0].text}")
 
         output_file = os.path.join(self.output_dir, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
-        data["trace"].append(f"search term: {response}")
+        data["trace"].append(f"search term: {parts_response[0].text}")
         if len(data["cost"]) == 0:
             data["cost"].append(cost) 
         else:
@@ -146,7 +152,7 @@ class WebBrowser:
         with open(output_file, "w") as f:
             json.dump(data, f, indent=2)
 
-        return response.choices[0].message.content
+        return parts_response[0].text
     
     # The browsing behavior
     def browse(self, query, search_term):

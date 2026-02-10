@@ -14,7 +14,6 @@ import logging
 
 from agent.prompts import RETRIEVER_FILE_SELECTION_TASK_DESC, RETRIEVER_JOIN_TABLE_TASK_DESC, RETRIEVER_PDF_TASK_DESC, RETRIEVER_PLAN_TASK_DESC
 from agent.utils import COST_DICT
-from .gemini_client import get_gemini_model
 
 class DataTransformer:
     def __init__(self, task, api_key, api_model, output_path, client):
