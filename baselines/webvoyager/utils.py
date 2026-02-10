@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 from utils_webarena import fetch_browser_info, fetch_page_accessibility_tree,\
                     parse_accessibility_tree, clean_accesibility_tree
+import google.generativeai as genai
 
 
 def resize_image(image_path):
@@ -79,7 +80,7 @@ def plan_search_term(query, task):
     messages = [
         {
             "role": "user",
-            "content": RETRIEVER_SEARCH_TERM_DESC.format(action=action, query=query)
+            "parts": [{"text": RETRIEVER_SEARCH_TERM_DESC.format(action=action, query=query)}]
         }
     ]
     return messages
@@ -316,19 +317,23 @@ def clip_message(msg, max_img_num):
         if curr_msg['role'] != 'user':
             clipped_msg = [curr_msg] + clipped_msg
         else:
-            if type(curr_msg['content']) == str:
+            parts = curr_msg.get('parts', [])
+            has_image = any('inline_data' in part for part in parts)
+            if not has_image:
                 clipped_msg = [curr_msg] + clipped_msg
             elif img_num < max_img_num:
                 img_num += 1
                 clipped_msg = [curr_msg] + clipped_msg
             else:
+                original_text = ""
+                if len(parts) > 0 and 'text' in parts[0]:
+                    original_text = parts[0]['text']
                 curr_msg_clip = {
                     'role': curr_msg['role'],
-                    'content': curr_msg['content'][0]["text"]
+                    'content': original_text
                 }
                 clipped_msg = [curr_msg_clip] + clipped_msg
     return clipped_msg
-
 
 def clip_message_and_obs(msg, max_img_num):
     clipped_msg = []
@@ -338,17 +343,28 @@ def clip_message_and_obs(msg, max_img_num):
         if curr_msg['role'] != 'user':
             clipped_msg = [curr_msg] + clipped_msg
         else:
-            if type(curr_msg['content']) == str:
+            parts = curr_msg.get('parts', [])
+            has_image = any('inline_data' in part for part in parts)
+            if not has_image:
                 clipped_msg = [curr_msg] + clipped_msg
             elif img_num < max_img_num:
                 img_num += 1
                 clipped_msg = [curr_msg] + clipped_msg
             else:
-                msg_no_pdf = curr_msg['content'][0]["text"].split("Observation:")[0].strip() + "Observation: A screenshot and some texts. (Omitted in context.)"
-                msg_pdf = curr_msg['content'][0]["text"].split("Observation:")[0].strip() + "Observation: A screenshot, a PDF file and some texts. (Omitted in context.)"
+                original_text = ""
+                if len(parts) > 0 and 'text' in parts[0]:
+                    original_text = parts[0]['text']
+                    
+                base_text_split = original_text.split("Observation:")
+                base_text = base_text_split[0].strip() if len(base_text_split) > 0 else original_text
+                
+                if "You downloaded a PDF file" not in original_text:
+                    new_text = base_text + "Observation: A screenshot and some texts. (Omitted in context.)"
+                else:
+                    new_text = base_text + "Observation: A screenshot, a PDF file and some texts. (Omitted in context.)"
                 curr_msg_clip = {
                     'role': curr_msg['role'],
-                    'content': msg_no_pdf if "You downloaded a PDF file" not in curr_msg['content'][0]["text"] else msg_pdf
+                    'parts': [{'text': new_text}]
                 }
                 clipped_msg = [curr_msg_clip] + clipped_msg
     return clipped_msg
@@ -362,15 +378,23 @@ def clip_message_and_obs_text_only(msg, max_tree_num):
         if curr_msg['role'] != 'user':
             clipped_msg = [curr_msg] + clipped_msg
         else:
+            parts = curr_msg.get('parts', [])
             if tree_num < max_tree_num:
                 tree_num += 1
                 clipped_msg = [curr_msg] + clipped_msg
             else:
-                msg_no_pdf = curr_msg['content'].split("Observation:")[0].strip() + "Observation: An accessibility tree. (Omitted in context.)"
-                msg_pdf = curr_msg['content'].split("Observation:")[0].strip() + "Observation: An accessibility tree and a PDF file. (Omitted in context.)"
+                original_text = ""
+                if len(parts) > 0 and 'text' in parts[0]:
+                    original_text = parts[0]['text']
+                base_text_split = original_text.split("Observation:")
+                base_text = base_text_split[0].strip() if len(base_text_split) > 0 else original_text    
+                
+                msg_no_pdf = base_text + "Observation: An accessibility tree. (Omitted in context.)"
+                msg_pdf = base_text + "Observation: An accessibility tree and a PDF file. (Omitted in context.)"
+                
                 curr_msg_clip = {
                     'role': curr_msg['role'],
-                    'content': msg_no_pdf if "You downloaded a PDF file" not in curr_msg['content'] else msg_pdf
+                    'content': msg_no_pdf if "You downloaded a PDF file" not in original_text else msg_pdf
                 }
                 clipped_msg = [curr_msg_clip] + clipped_msg
     return clipped_msg
@@ -396,13 +420,11 @@ def print_message(json_object, save_dir=None):
             else:
                 print_obj = {
                     'role': obj['role'],
-                    'content': obj['content']
+                    'parts': obj['parts']
                 }
-                for item in print_obj['content']:
-                    if item['type'] == 'image_url':
-                        item['image_url'] =  {"url": "data:image/png;base64,{b64_img}"}
-                # print(print_obj)
-                #logging.info(print_obj)
+                for item in print_obj['parts']:
+                    if 'inline_data' in item:
+                        item['inline_data'] =  {"mime_type": "image/png", "data": "{b64_img}"}
                 remove_b64code_obj.append(print_obj)
     if save_dir:
         with open(os.path.join(save_dir, 'interact_messages.json'), 'w', encoding='utf-8') as fw:
@@ -483,3 +505,40 @@ def get_pdf_retrieval_ans_from_assistant(client, pdf_path, task):
     # print(assistant_deletion_status)
     logging.info(assistant_deletion_status)
     return messages_text
+
+def get_pdf_retrieval_ans_from_assistant(pdf_path, task, model_name="gemini-2.5-flash"):
+    logging.info(f"Uploading PDF file {pdf_path} to Gemini...")
+
+    pdf_file = genai.upload_file(pdf_path)
+
+    logging.info(f"Waiting for file processing: {pdf_file.name}")
+    while pdf_file.state.name == "PROCESSING":
+        time.sleep(2)
+        pdf_file = genai.get_file(pdf_file.name)
+
+    if pdf_file.state.name == "FAILED":
+        logging.error("File processing failed.")
+        raise ValueError("File processing failed.")
+
+    logging.info("File processing completed. Generating answer...")
+
+    model = genai.GenerativeModel(
+        model_name=model_name,
+        system_instruction="You are a helpful assistant that can analyze the content of a PDF file and give an answer that matches the given task, or retrieve relevant content that matches the task."
+    )
+
+    try:
+        response = model.generate_content([task, pdf_file])
+        answer = response.text
+    except Exception as e:
+        logging.error(f"Error generating content: {e}")
+        answer = "Error generating response from Gemini."
+    
+    logging.info("Cleaning up file...")
+    try:
+        pdf_file.delete()
+        logging.info("File deleted successfully.")
+    except Exception as e:
+        logging.warning(f"Failed to delete file: {e}")
+
+    return answer
