@@ -7,12 +7,15 @@ import re
 import json
 import logging
 
+from agent.subagents.gemini_client import get_gemini_model
+from agent.subagents.gemini_tool import calculate_gemini_cost
+
 from openai import OpenAI
 
 class DataAnalyzer:
     def __init__(self, task, api_key, api_model, org, output_path):
         self.task = task
-        self.client = OpenAI(api_key=api_key, organization=org)
+        self.client = get_gemini_model(api_model)
         self.api_model = api_model
         self.output_path = output_path
         self.api_key = api_key
@@ -41,18 +44,23 @@ class DataAnalyzer:
         else:
             prompt = ANALYZER_CODE_GEN_QA_TASK_DESC.format(query=query, df_columns=df.columns, df_head=df.head())
 
-        response = self.client.chat.completions.create(
-            model=self.api_model,
-            messages=[
-                {"role": "system", "content": "You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting."},
-                {"role": "user", "content": prompt}
-            ]
-        )
+        contents = [
+            {"role": "system",
+             "parts": [
+                {"text": "You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting."}
+             ]},
+            {"role": "user",
+             "parts": [
+                {"text": prompt}
+             ]}
+        ]
         
-        pandas_code = response.choices[0].message.content.strip()
+        response = self.client.generate_content(contents)
+        
+        pandas_code = response.text.strip()
         pandas_code = re.sub(r'```python\n|```', '', pandas_code)
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gemini_cost(response, model_name="gemini-2.5-flash")
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
