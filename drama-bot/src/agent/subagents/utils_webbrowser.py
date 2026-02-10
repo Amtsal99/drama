@@ -260,17 +260,30 @@ def clip_message_and_obs(msg, max_img_num):
         if curr_msg['role'] != 'user':
             clipped_msg = [curr_msg] + clipped_msg
         else:
-            if type(curr_msg['content']) == str:
+            parts = curr_msg.get('parts', [])
+            has_image = any('inline_data' in part for part in parts)
+            if not has_image:
                 clipped_msg = [curr_msg] + clipped_msg
             elif img_num < max_img_num:
                 img_num += 1
                 clipped_msg = [curr_msg] + clipped_msg
             else:
-                msg_no_pdf = curr_msg['content'][0]["text"].split("Observation:")[0].strip() + "Observation: A screenshot and some texts. (Omitted in context.)"
-                msg_pdf = curr_msg['content'][0]["text"].split("Observation:")[0].strip() + "Observation: A screenshot, a PDF file and some texts. (Omitted in context.)"
+                original_text = ""
+                for part in parts:
+                    if 'text' in part:
+                        original_text += part['text']
+                        break
+                    
+                base_text_split = original_text.split("Observation:")
+                base_text = base_text_split[0].strip() if len(base_text_split) > 0 else original_text
+                
+                if "You downloaded a PDF file" not in original_text:
+                    new_text = base_text + "Observation: A screenshot and some texts. (Omitted in context.)"
+                else:
+                    new_text = base_text + "Observation: A screenshot, a PDF file and some texts. (Omitted in context.)"
                 curr_msg_clip = {
                     'role': curr_msg['role'],
-                    'content': msg_no_pdf if "You downloaded a PDF file" not in curr_msg['content'][0]["text"] else msg_pdf
+                    'parts': [{'text': new_text}]
                 }
                 clipped_msg = [curr_msg_clip] + clipped_msg
     return clipped_msg

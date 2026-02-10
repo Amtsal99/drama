@@ -16,7 +16,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
-from openai import OpenAI
+from google.api_core import exceptions
+from google.generativeai import types
 
 from .utils_webbrowser import get_web_element_rect, encode_image, extract_information, get_webarena_accessibility_tree, clip_message_and_obs
 from .gemini_tool import calculate_gemini_cost, parse_gemini_response
@@ -137,14 +138,14 @@ class WebBrowser:
 
         cost = calculate_gemini_cost(response, model_name=self.api_model)
         
-        parts_response = parse_gemini_response(response)
+        # parts_response = parse_gemini_response(response)
 
-        logging.info(f"Search Term: {parts_response[0].text}")
+        logging.info(f"Search Term: {response.text}")
 
         output_file = os.path.join(self.output_dir, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
-        data["trace"].append(f"search term: {parts_response[0].text}")
+        data["trace"].append(f"search term: {response.text}")
         if len(data["cost"]) == 0:
             data["cost"].append(cost) 
         else:
@@ -152,7 +153,7 @@ class WebBrowser:
         with open(output_file, "w") as f:
             json.dump(data, f, indent=2)
 
-        return parts_response[0].text
+        return response.text
     
     # The browsing behavior
     def browse(self, query, search_term):
@@ -253,17 +254,21 @@ class WebBrowser:
             messages = clip_message_and_obs(messages, self.max_attached_imgs)
 
             # Call GPT-4v API
-            prompt_tokens, completion_tokens, gpt_call_error, openai_response = call_gpt4v_api(self.client, messages, self.api_model, self.seed)
+            # prompt_tokens, completion_tokens, gpt_call_error, openai_response = call_gpt4v_api(self.client, messages, self.api_model, self.seed)
+            
+            # call gemini-2.5-flash API
+            prompt_tokens, completion_tokens, gemini_call_error, gemini_response = call_gemini_api(self.api_model, messages, seed=self.seed)
 
-            if gpt_call_error:
+            if gemini_call_error:
                 break
             else:
                 accumulate_prompt_token += prompt_tokens
                 accumulate_completion_token += completion_tokens
                 logging.info(f'Accumulate Prompt Tokens: {accumulate_prompt_token}; Accumulate Completion Tokens: {accumulate_completion_token}')
                 logging.info('API call complete...')
-            gpt_4v_res = openai_response.choices[0].message.content
-            messages.append({'role': 'assistant', 'content': gpt_4v_res})
+            parts_gemini_response = parse_gemini_response(gemini_response)
+            gemini_response_text = parts_gemini_response[0].text 
+            messages.append({'role': 'assistant', 'content': gemini_response_text})
 
             # remove the rects on the website
             if rects:
@@ -274,14 +279,14 @@ class WebBrowser:
 
             # extract action info
             try:
-                assert 'Thought:' in gpt_4v_res and 'Action:' in gpt_4v_res
+                assert 'Thought:' in gemini_response_text and 'Action:' in gemini_response_text
             except AssertionError as e:
                 logging.error(e)
                 fail_obs = "Format ERROR: Both 'Thought' and 'Action' should be included in your reply."
                 continue
 
-            # bot_thought = re.split(pattern, gpt_4v_res)[1].strip()
-            chosen_action = re.split(pattern, gpt_4v_res)[2].strip()
+            # bot_thought = re.split(pattern, gemini_response_text)[1].strip()
+            chosen_action = re.split(pattern, gemini_response_text)[2].strip()
             action_key, info = extract_information(chosen_action)
             trace += "\n" + f"Action Key: {action_key}"
             trace += "\n" + f"Info: {info}"
@@ -449,61 +454,53 @@ def format_msg(it, init_msg, pdf_obs, warn_obs, web_img_b64, web_text):
     
     return curr_msg
 
-
-def format_msg_text_only(it, init_msg, pdf_obs, warn_obs, ac_tree):
-    if it == 1:
-        init_msg_format = {
-            'role': 'user',
-            'content': init_msg + '\n' + ac_tree
-        }
-        return init_msg_format
-    else:
-        if not pdf_obs:
-            curr_msg = {
-                'role': 'user',
-                'content': f"Observation:{warn_obs} please analyze the accessibility tree and give the Thought and Action.\n{ac_tree}"
-            }
-        else:
-            curr_msg = {
-                'role': 'user',
-                'content': f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The accessibility tree of the current page is also given, give the Thought and Action.\n{ac_tree}"
-            }
-        return curr_msg
-
-
-def call_gpt4v_api(openai_client, messages, api_model, seed):
+def call_gemini_api(model, messages, seed):
     retry_times = 0
+    generation_conf = types.GenerationConfig(
+        max_output_tokens=8192,
+        seed=seed
+    )
     while True:
         try:
-            openai_response = openai_client.chat.completions.create(
-                model=api_model, messages=messages, max_tokens=1000, seed=seed
+            response = model.generate_content(
+                messages,
+                generation_config=generation_conf,
+                request_options={"timeout": 600}
             )
-            prompt_tokens = openai_response.usage.prompt_tokens
-            completion_tokens = openai_response.usage.completion_tokens
+            if not response.parts:
+                logging.warning(f"Gemini response blocked by safety filters. Feedback: {response.prompt_feedback}")
+                return None, None, True, None
+            
+            prompt_tokens = response.usage_metadata.prompt_token_count
+            completion_tokens = response.usage_metadata.completion_token_count
+            
+            gemini_call_error = False
+            
+            return prompt_tokens, completion_tokens, gemini_call_error, response
+            
+        except exceptions.ResourceExhausted as e:
+            logging.info(f'Gemini Quota Exceeded (Rate Limit), retrying... Error: {e}')
+            time.sleep(10)
 
-            gpt_call_error = False
-            return prompt_tokens, completion_tokens, gpt_call_error, openai_response
+        except exceptions.ServiceUnavailable as e:
+            logging.info(f'Gemini Service Unavailable (Overloaded), retrying... Error: {e}')
+            time.sleep(15)
+            
+        except exceptions.InternalServerError as e:
+            logging.info(f'Gemini Internal Server Error, retrying... Error: {e}')
+            time.sleep(15)
+
+        except exceptions.InvalidArgument as e:
+            logging.error(f'Fatal Input Error: {e}')
+            return None, None, True, None
 
         except Exception as e:
-            logging.info(f'Error occurred, retrying. Error type: {type(e).__name__}')
-
-            if type(e).__name__ == 'RateLimitError':
-                time.sleep(10)
-
-            elif type(e).__name__ == 'APIError':
-                time.sleep(15)
-
-            elif type(e).__name__ == 'InvalidRequestError':
-                gpt_call_error = True
-                return None, None, gpt_call_error, None
-
-            else:
-                gpt_call_error = True
-                return None, None, gpt_call_error, None
+            logging.error(f'Unknown Error occurred: {type(e).__name__} - {e}')
+            return None, None, True, None
 
         retry_times += 1
         if retry_times == 10:
-            logging.info('Retrying too many times')
+            logging.info('Retrying too many times (Gemini)')
             return None, None, True, None
 
 

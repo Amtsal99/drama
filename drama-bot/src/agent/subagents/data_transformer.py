@@ -11,9 +11,12 @@ import fnmatch
 import PyPDF2
 import pytesseract
 import logging
+import google.generativeai as genai
 
 from agent.prompts import RETRIEVER_FILE_SELECTION_TASK_DESC, RETRIEVER_JOIN_TABLE_TASK_DESC, RETRIEVER_PDF_TASK_DESC, RETRIEVER_PLAN_TASK_DESC
 from agent.utils import COST_DICT
+
+from .gemini_tool import calculate_gemini_cost
 
 class DataTransformer:
     def __init__(self, task, api_key, api_model, output_path, client):
@@ -102,20 +105,24 @@ class DataTransformer:
             messages = [
                 {
                     "role": "user",
-                    "content": RETRIEVER_PLAN_TASK_DESC.format(action=action, query=query, existing_columns=existing_columns, df_head = df_head)
+                    "parts": [
+                        {"text": RETRIEVER_PLAN_TASK_DESC.format(action=action, query=query, existing_columns=existing_columns, df_head = df_head)}
+                    ]
                 }
             ]
 
-            response = self.client.chat.completions.create(
+            response = self.client.generate_content(
                 model=self.api_model,
-                messages=messages,
+                messages=messages
             )
-            response_content = response.choices[0].message.content
+            
+            # parts_response = parse_gemini_response(response)
+            response_content = response.text
             ls = response_content.split('#')
             res1 = ls[0]
             res2 = ls[1]
 
-            cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+            cost = calculate_gemini_cost(response, model_name=self.api_model)
             output_file = os.path.join(self.output_path, "output.json")
             with open(output_file, "r") as f:
                 data = json.load(f)
@@ -184,18 +191,23 @@ class DataTransformer:
 
         prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content)
 
-        response = self.client.chat.completions.create(
+        response = self.client.generate_content(
             model=self.api_model,
-            messages=[
-                {"role": "user", "content": prompt}
+            content=[
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": prompt}
+                    ]
+                }
             ]
         )
         
-        filename = response.choices[0].message.content.strip()
+        filename = response.text.strip()
 
         logging.info(f"Selected file: {filename}")
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gemini_cost(response, model_name=self.api_model)
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
@@ -215,13 +227,6 @@ class DataTransformer:
             image.save(buffer, format="JPEG")
             return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-        # Initialize headers
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-            "OpenAI-Organization": self.org
-        }
-
         if self.task == "verification":
             action = "verify"
         else:
@@ -236,40 +241,45 @@ class DataTransformer:
         while page < len(images):
             image = images[page]
             base64_image = encode_image(image)
+            
+            text_prompt = RETRIEVER_PDF_TASK_DESC.format(action=action, 
+                                                         query=query, 
+                                                         respond=respond, 
+                                                         missing_info=missing_info)
+            
+            parts = [
+                {"text": text_prompt},
+                {"inline_image": {"mime_type": "image/jpeg", "data": base64_image}}
+            ]
+            try:
+                
+                # response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+                # response_json = response.json()
+                response = self.client.generate_content(
+                    parts,
+                    generation_config=genai.GenerationConfig(max_output_tokens=4096, 
+                                                             temperature=0.0),
+                    request_option={"timeout": 600}
+                )
+                
+                if not response.parts:
+                    logging.info(f"Warning: Page {page} blocked by safety filters.")
+                    response_content = "Error: Analysis blocked due to safety content."
+                else:
+                    response_content = response.text
+                
+                trace += "\n" + response_content
+                cost += calculate_gemini_cost(response, model_name=self.api_model)
 
-            payload = {
-                "model": "gpt-4o",
-                "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                    {
-                        "type": "text",
-                        "text": RETRIEVER_PDF_TASK_DESC.format(action=action, query=query, respond=respond, missing_info=missing_info),
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
-                    }
-                    ]
-                }
-                ],
-                "max_tokens": 4096
-            }
+                if response_content[-1] == "#":
+                    break
+                
+            except Exception as e:
+                logging.error(f"Error processing page {page} of {pdf_file}: {e}")
+                response_content = "Error: API Request Failed"
 
-            response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-            response_json = response.json()
-
-            respond = response_json['choices'][0]['message']['content']
-            trace += "\n" + respond
-            cost += response_json["usage"]["prompt_tokens"] * COST_DICT["gpt-4o-2024-08-06"]["cost_per_input_token"] + response_json["usage"]["completion_tokens"] * COST_DICT["gpt-4o-2024-08-06"]["cost_per_output_token"]
-
-            if respond[-1] == "#":
-                break
-
-        match = re.search(r"```csv\n(.*?)\n```", respond, re.DOTALL)
+            
+        match = re.search(r"```csv\n(.*?)\n```", response_content, re.DOTALL)
         if match:
             csv_content = match.group(1)  # Extract content between the triple backticks
 
