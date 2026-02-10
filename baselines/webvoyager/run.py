@@ -12,6 +12,10 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 
+import google.generativeai as genai
+from google.api_core import exceptions
+from google.generativeai import types
+
 from concurrent.futures import ThreadPoolExecutor
 
 from prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_TEXT_ONLY, QA_PROMPT, VERIFICATION_PROMPT, QA_CODECSV_INSTRUCTIONS, VALIDATION_CODECSV_INSTRUCTIONS
@@ -20,6 +24,9 @@ from utils import get_web_element_rect, encode_image, extract_information, print
     get_webarena_accessibility_tree, get_pdf_retrieval_ans_from_assistant, clip_message_and_obs, clip_message_and_obs_text_only, process_output, plan_search_term
 
 BANNED_DOMAINS = ["x.com", "twitter.com", "politifact.com", "factcheck.org", "reuters.com", "instagram.com", "facebook.com", "guardian.com", "usafacts.org"]
+
+COST_PER_PROMPT_TOKEN = 3e-07
+COST_PER_COMPLETION_TOKEN = 2.5e-06
 
 def setup_logger(folder_path):
     log_file_path = os.path.join(folder_path, 'agent.log')
@@ -64,107 +71,104 @@ def driver_config(args):
 
 
 def format_msg(it, init_msg, pdf_obs, warn_obs, web_img_b64, web_text):
+    if "base64," in web_img_b64:
+        web_img_b64 = web_img_b64.split("base64,")[1]
+        
+    guidance_text = f"I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"
     if it == 1:
-        init_msg += f"I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"
-        init_msg_format = {
-            'role': 'user',
-            'content': [
-                {'type': 'text', 'text': init_msg},
-            ]
-        }
-        init_msg_format['content'].append({"type": "image_url",
-                                           "image_url": {"url": f"data:image/png;base64,{web_img_b64}"}})
-        return init_msg_format
+        text_content = f"{init_msg}{guidance_text}"
+        
     else:
         if not pdf_obs:
-            curr_msg = {
-                'role': 'user',
-                'content': [
-                    {'type': 'text', 'text': f"Observation:{warn_obs} please analyze the attached screenshot and give the Thought and Action. I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"},
-                    {
-                        'type': 'image_url',
-                        'image_url': {"url": f"data:image/png;base64,{web_img_b64}"}
-                    }
-                ]
-            }
+            text_content = f"Observation:{warn_obs} please analyze the attached screenshot and give the Thought and Action. {guidance_text}"
         else:
-            curr_msg = {
-                'role': 'user',
-                'content': [
-                    {'type': 'text', 'text': f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The screenshot of the current page is also attached, give the Thought and Action. I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"},
-                    {
-                        'type': 'image_url',
-                        'image_url': {"url": f"data:image/png;base64,{web_img_b64}"}
-                    }
-                ]
+            text_content = f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The screenshot of the current page is also attached, give the Thought and Action. {guidance_text}"
+    curr_msg = {
+        'role': 'user',
+        'parts': [
+            {
+                'text': text_content
+            },
+            {
+                'inline_data': {
+                    'mime_type': 'image/png', 
+                    'data': web_img_b64
+                }
             }
-        return curr_msg
+        ]
+    }
+    
+    return curr_msg
 
 
 def format_msg_text_only(it, init_msg, pdf_obs, warn_obs, ac_tree):
     if it == 1:
         init_msg_format = {
             'role': 'user',
-            'content': init_msg + '\n' + ac_tree
+            'parts': [{'text': init_msg + '\n' + ac_tree}]
         }
         return init_msg_format
     else:
         if not pdf_obs:
             curr_msg = {
                 'role': 'user',
-                'content': f"Observation:{warn_obs} please analyze the accessibility tree and give the Thought and Action.\n{ac_tree}"
+                'parts': [{'text': f"Observation:{warn_obs} please analyze the accessibility tree and give the Thought and Action.\n{ac_tree}"}]
             }
         else:
             curr_msg = {
                 'role': 'user',
-                'content': f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The accessibility tree of the current page is also given, give the Thought and Action.\n{ac_tree}"
+                'parts': [{'text': f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The accessibility tree of the current page is also given, give the Thought and Action.\n{ac_tree}"}]
             }
         return curr_msg
 
 
-def call_gpt4v_api(args, openai_client, messages):
+def call_gemini_api(model, messages, seed):
     retry_times = 0
+    generation_conf = types.GenerationConfig(
+        max_output_tokens=8192,
+        seed=seed
+    )
     while True:
         try:
-            if not args.text_only:
-                logging.info('Calling gpt4v API...')
-                openai_response = openai_client.chat.completions.create(
-                    model=args.api_model, messages=messages, max_tokens=1000, seed=args.seed
-                )
-            else:
-                logging.info('Calling gpt4 API...')
-                openai_response = openai_client.chat.completions.create(
-                    model=args.api_model, messages=messages, max_tokens=1000, seed=args.seed, timeout=30
-                )
+            response = model.generate_content(
+                messages,
+                generation_config=generation_conf,
+                request_options={"timeout": 600}
+            )
+            if not response.parts:
+                logging.warning(f"Gemini response blocked by safety filters. Feedback: {response.prompt_feedback}")
+                return None, None, True, None
+            
+            prompt_tokens = response.usage_metadata.prompt_token_count
+            completion_tokens = response.usage_metadata.completion_token_count
+            
+            gemini_call_error = False
+            
+            return prompt_tokens, completion_tokens, gemini_call_error, response
+            
+        except exceptions.ResourceExhausted as e:
+            logging.info(f'Gemini Quota Exceeded (Rate Limit), retrying... Error: {e}')
+            time.sleep(10)
 
-            prompt_tokens = openai_response.usage.prompt_tokens
-            completion_tokens = openai_response.usage.completion_tokens
+        except exceptions.ServiceUnavailable as e:
+            logging.info(f'Gemini Service Unavailable (Overloaded), retrying... Error: {e}')
+            time.sleep(15)
+            
+        except exceptions.InternalServerError as e:
+            logging.info(f'Gemini Internal Server Error, retrying... Error: {e}')
+            time.sleep(15)
 
-            logging.info(f'Prompt Tokens: {prompt_tokens}; Completion Tokens: {completion_tokens}')
-
-            gpt_call_error = False
-            return prompt_tokens, completion_tokens, gpt_call_error, openai_response
+        except exceptions.InvalidArgument as e:
+            logging.error(f'Fatal Input Error: {e}')
+            return None, None, True, None
 
         except Exception as e:
-            logging.info(f'Error occurred, retrying. Error type: {type(e).__name__}')
-
-            if type(e).__name__ == 'RateLimitError':
-                time.sleep(10)
-
-            elif type(e).__name__ == 'APIError':
-                time.sleep(15)
-
-            elif type(e).__name__ == 'InvalidRequestError':
-                gpt_call_error = True
-                return None, None, gpt_call_error, None
-
-            else:
-                gpt_call_error = True
-                return None, None, gpt_call_error, None
+            logging.error(f'Unknown Error occurred: {type(e).__name__} - {e}')
+            return None, None, True, None
 
         retry_times += 1
         if retry_times == 10:
-            logging.info('Retrying too many times')
+            logging.info('Retrying too many times (Gemini)')
             return None, None, True, None
 
 
@@ -242,11 +246,18 @@ def exec_action_scroll(info, web_eles, driver_task, args, obs_info):
 
 def run_single_task(task, args, client, result_dir, options):
     visited_urls = []
-    gpt_query_prompt = plan_search_term(task['ques'], args.test_task)
-    openai_response = client.chat.completions.create(
-        model=args.api_model, messages=gpt_query_prompt, max_tokens=1000, seed=args.seed, timeout=30
+    query_prompt = plan_search_term(task['ques'], args.test_task)
+    
+    gen_conf = types.GenerationConfig(
+        temperature=args.temperature,
+        max_output_tokens=1000,
+        seed=args.seed
     )
-    searchable_query = openai_response.choices[0].message.content
+    
+    response = client.generate_content(
+        messages=query_prompt, generation_config=gen_conf, request_options={"timeout": 30}
+    )
+    searchable_query = response.text
 
     if 'web' not in task:
         task['web'] = "https://google.com/"
@@ -283,16 +294,16 @@ def run_single_task(task, args, client, result_dir, options):
     warn_obs = ""  # Type warning
     pattern = r'Thought:|Action:|Observation:'
 
-    messages = [{'role': 'system', 'content': SYSTEM_PROMPT}]
+    messages = [{'role': 'system', 'parts': {"text": SYSTEM_PROMPT}}]
     obs_prompt = "Observation: please analyze the attached screenshot and give the Thought and Action. "
     if args.text_only:
-        messages = [{'role': 'system', 'content': SYSTEM_PROMPT_TEXT_ONLY}]
+        messages = [{'role': 'system', 'parts': {"text": SYSTEM_PROMPT_TEXT_ONLY}}]
         obs_prompt = "Observation: please analyze the accessibility tree and give the Thought and Action."
     else:
         if args.test_task == 'verification':
-            messages = [{'role': 'system', 'content': VERIFICATION_PROMPT}]
+            messages = [{'role': 'system', 'parts': {"text": VERIFICATION_PROMPT}}]
         elif args.test_task == 'qa':
-            messages = [{'role': 'system', 'content': QA_PROMPT}]
+            messages = [{'role': 'system', 'parts': {"text": QA_PROMPT}}]
 
     init_msg = f"""Now given a task: {searchable_query}  Please interact with https://www.example.com and get the answer. \n"""
     init_msg = init_msg.replace('https://www.example.com', task['web'])
@@ -311,7 +322,7 @@ def run_single_task(task, args, client, result_dir, options):
                     driver_task.back()
                     curr_msg = {
                         'role': 'user',
-                        'content': 'Thought: Visited a banned domain. Please try another website'
+                        'parts': [{"text": "Thought: Visited a banned domain. Please try another website"}]
                     }
                     messages.append(curr_msg)
                     continue
@@ -353,7 +364,7 @@ def run_single_task(task, args, client, result_dir, options):
         else:
             curr_msg = {
                 'role': 'user',
-                'content': fail_obs
+                'parts': [{"text" : fail_obs}]
             }
             messages.append(curr_msg)
 
@@ -363,31 +374,31 @@ def run_single_task(task, args, client, result_dir, options):
         else:
             messages = clip_message_and_obs_text_only(messages, args.max_attached_imgs)
 
-        # Call GPT-4v API
+        # Call gemini-2.5-flash API
         if args.test_task == 'verification':
             code_csv_message = {
                 'role': 'user',
-                'content': VALIDATION_CODECSV_INSTRUCTIONS
+                'parts': [{"text": VALIDATION_CODECSV_INSTRUCTIONS}]
             }
             messages.append(code_csv_message)
         elif args.test_task == 'qa':
             code_csv_message = {
                 'role': 'user',
-                'content': QA_CODECSV_INSTRUCTIONS
+                'parts': [{"text": QA_CODECSV_INSTRUCTIONS}]
             }
             messages.append(code_csv_message)
-        prompt_tokens, completion_tokens, gpt_call_error, openai_response = call_gpt4v_api(args, client, messages)
+        prompt_tokens, completion_tokens, call_error, response = call_gemini_api(args, client, messages)
 
-        if gpt_call_error:
+        if call_error:
             break
         else:
             accumulate_prompt_token += prompt_tokens
             accumulate_completion_token += completion_tokens
             logging.info(f'Accumulate Prompt Tokens: {accumulate_prompt_token}; Accumulate Completion Tokens: {accumulate_completion_token}')
             logging.info('API call complete...')
-        gpt_4v_res = openai_response.choices[0].message.content
-        process_output(gpt_4v_res, task, visited_urls, args.test_task, args.output_dir, searchable_query)
-        messages.append({'role': 'assistant', 'content': gpt_4v_res})
+        gemini_res = response.text
+        process_output(gemini_res, task, visited_urls, args.test_task, args.output_dir, searchable_query)
+        messages.append({'role': 'assistant', 'parts': [{"text": gemini_res}]})
 
 
         # remove the rects on the website
@@ -401,14 +412,14 @@ def run_single_task(task, args, client, result_dir, options):
 
         # extract action info
         try:
-            assert 'Thought:' in gpt_4v_res and 'Action:' in gpt_4v_res
+            assert 'Thought:' in gemini_res and 'Action:' in gemini_res
         except AssertionError as e:
             logging.error(e)
             fail_obs = "Format ERROR: Both 'Thought' and 'Action' should be included in your reply."
             continue
 
-        # bot_thought = re.split(pattern, gpt_4v_res)[1].strip()
-        chosen_action = re.split(pattern, gpt_4v_res)[2].strip()
+        # bot_thought = re.split(pattern, gemini_res)[1].strip()
+        chosen_action = re.split(pattern, gemini_res)[2].strip()
 
         action_key, info = extract_information(chosen_action)
 
@@ -504,7 +515,7 @@ def run_single_task(task, args, client, result_dir, options):
 
     print_message(messages, task_dir)
     driver_task.quit()
-    cost = accumulate_prompt_token * 2.5e-06 + accumulate_completion_token * 10e-06
+    cost = accumulate_prompt_token * COST_PER_PROMPT_TOKEN + accumulate_completion_token * COST_PER_COMPLETION_TOKEN
     logging.info(f'Total cost: {cost}')
     out_filename = f"{args.output_dir}/{task['id']}.json"
 
@@ -552,7 +563,9 @@ def main():
     #             shutil.rmtree(entry.path)
 
     # OpenAI client
-    client = OpenAI(api_key=args.api_key)
+    # client = OpenAI(api_key=args.api_key)
+    # gemini client
+    client = genai.GenerativeModel(model_name=args.api_model, api_key=args.api_key)
     options = driver_config(args)
 
     # Save Result file
