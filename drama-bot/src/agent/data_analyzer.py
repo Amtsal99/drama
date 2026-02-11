@@ -7,7 +7,7 @@ import re
 import json
 import logging
 
-from agent.subagents.gemini_client import get_gemini_model
+from agent.subagents.gemini_client import configure_gemini_model
 from agent.subagents.gemini_tool import calculate_gemini_cost
 
 from openai import OpenAI
@@ -15,7 +15,7 @@ from openai import OpenAI
 class DataAnalyzer:
     def __init__(self, task, api_key, api_model, org, output_path):
         self.task = task
-        self.client = get_gemini_model(api_model)
+        # self.client = get_gemini_model(api_model)
         self.api_model = api_model
         self.output_path = output_path
         self.api_key = api_key
@@ -43,19 +43,17 @@ class DataAnalyzer:
             prompt = ANALYZER_CODE_GEN_VERIFICATION_TASK_DESC.format(query=query, df_columns=df.columns, df_head=df.head())
         else:
             prompt = ANALYZER_CODE_GEN_QA_TASK_DESC.format(query=query, df_columns=df.columns, df_head=df.head())
+            
+        gemini_model = configure_gemini_model(self.api_model, system_prompt="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.")
 
         contents = [
-            {"role": "system",
-             "parts": [
-                {"text": "You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting."}
-             ]},
             {"role": "user",
              "parts": [
                 {"text": prompt}
              ]}
         ]
         
-        response = self.client.generate_content(contents)
+        response = self.client.generate_content(contents=contents)
         
         pandas_code = response.text.strip()
         pandas_code = re.sub(r'```python\n|```', '', pandas_code)

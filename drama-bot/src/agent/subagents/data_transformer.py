@@ -7,6 +7,7 @@ import pandas as pd
 import json
 import base64
 import requests
+import time
 import fnmatch
 import PyPDF2
 import pytesseract
@@ -16,7 +17,8 @@ import google.generativeai as genai
 from agent.prompts import RETRIEVER_FILE_SELECTION_TASK_DESC, RETRIEVER_JOIN_TABLE_TASK_DESC, RETRIEVER_PDF_TASK_DESC, RETRIEVER_PLAN_TASK_DESC
 from agent.utils import COST_DICT
 
-from .gemini_tool import calculate_gemini_cost
+from gemini_tool import calculate_gemini_cost
+from gemini_client import configure_gemini_model
 
 class DataTransformer:
     def __init__(self, task, api_key, api_model, output_path, client):
@@ -55,19 +57,21 @@ class DataTransformer:
 
         prompt = RETRIEVER_JOIN_TABLE_TASK_DESC.format(action=action, query=query, df1_columns=df1.columns, df1_head=df1.head(), df2_columns=df2.columns, df2_head=df2.head(), missing_info=missing_info)
 
-        response = self.client.chat.completions.create(
-            model=self.api_model,
-            messages=[
-                {"role": "system", "content": "You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting."},
-                {"role": "user", "content": prompt}
+        time.sleep(12)  # to avoid reaching rate limit for free tier API
+        
+        gemini_model = configure_gemini_model(self.api_model, system_prompt="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.")
+        
+        response = gemini_model.generate_content(
+            contents=[
+                {"role": "user", "parts": [{"text": prompt}]}
             ]
         )
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gemini_cost(response, model_name=self.api_model)
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
-        data["trace"].append(response.choices[0].message.content.strip())
+        data["trace"].append(response.text.strip())
         if len(data["cost"]) == 0:
             data["cost"].append(cost) 
         else:
@@ -75,7 +79,7 @@ class DataTransformer:
         with open(output_file, "w") as f:
             json.dump(data, f, indent=2)
         
-        pandas_code = response.choices[0].message.content.strip()
+        pandas_code = response.text.strip()
         
         pandas_code = re.sub(r'```python\n|```', '', pandas_code)
         
@@ -102,7 +106,10 @@ class DataTransformer:
             action = "answer"
         
         def planner():
-            messages = [
+            
+            gemini_model = configure_gemini_model(self.api_model)
+            
+            contents = [
                 {
                     "role": "user",
                     "parts": [
@@ -111,9 +118,8 @@ class DataTransformer:
                 }
             ]
 
-            response = self.client.generate_content(
-                model=self.api_model,
-                messages=messages
+            response = gemini_model.generate_content(
+                contents=contents
             )
             
             # parts_response = parse_gemini_response(response)
@@ -190,10 +196,13 @@ class DataTransformer:
             action = "answer"
 
         prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content)
-
-        response = self.client.generate_content(
-            model=self.api_model,
-            content=[
+        
+        gemini_model = configure_gemini_model(self.api_model)
+        
+        time.sleep(12)  # to avoid reaching rate limit for free tier API
+        
+        response = gemini_model.generate_content(
+            contents=[
                 {
                     "role": "user",
                     "parts": [
@@ -236,6 +245,8 @@ class DataTransformer:
         images = convert_from_path(f"{self.output_path}/{pdf_file}")
         page = 0
 
+        gemini_model = configure_gemini_model(self.api_model)
+        
         cost = 0
         trace = ""
         while page < len(images):
@@ -248,15 +259,15 @@ class DataTransformer:
                                                          missing_info=missing_info)
             
             parts = [
-                {"text": text_prompt},
-                {"inline_image": {"mime_type": "image/jpeg", "data": base64_image}}
+                text_prompt,
+                {"mime_type": "image/jpeg", "data": base64_image}
             ]
             try:
                 
                 # response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
                 # response_json = response.json()
-                response = self.client.generate_content(
-                    parts,
+                response = gemini_model.generate_content(
+                    contents=parts,
                     generation_config=genai.GenerationConfig(max_output_tokens=4096, 
                                                              temperature=0.0),
                     request_option={"timeout": 600}

@@ -9,7 +9,6 @@ import zipfile
 import shutil
 import pandas as pd
 from io import StringIO
-from openai import OpenAI
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -20,7 +19,8 @@ from google.api_core import exceptions
 from google.generativeai import types
 
 from .utils_webbrowser import get_web_element_rect, encode_image, extract_information, get_webarena_accessibility_tree, clip_message_and_obs
-from .gemini_tool import calculate_gemini_cost, parse_gemini_response
+from .gemini_tool import calculate_gemini_cost
+from gemini_client import configure_gemini_model
 
 from agent.prompts import RETRIEVER_FIND_WEBSITE_TASK_DESC, RETRIEVER_SEARCH_TERM_DESC, RETRIEVER_BROWSE_SYSTEM_PROMPT
 from agent.utils import BLACKLIST, COST_DICT
@@ -37,6 +37,8 @@ class WebBrowser:
         self.max_attached_imgs = 3
         self.fix_box_color = True
         self.seed = 42
+        
+        self.number_of_downloaded_files = len(os.listdir(self.output_dir))
 
         # for driver_config
         self.save_accessibility_tree = False
@@ -120,7 +122,8 @@ class WebBrowser:
             action = "verify"
         else:
             action = "answer"
-            
+        
+        gemini_model = configure_gemini_model(self.api_model)
         # convert to gemini standard json format 
         contents = [
             {
@@ -131,9 +134,9 @@ class WebBrowser:
             }
         ]
 
-        response = self.client.generate_content(
-            model=self.api_model,
-            content=contents,
+        time.sleep(12)
+        response = gemini_model.generate_content(
+            contents=contents,
         )
 
         cost = calculate_gemini_cost(response, model_name=self.api_model)
@@ -193,12 +196,11 @@ class WebBrowser:
             action = "verify"
         else:
             action = "answer"
-
-        # convert to gemini standard json format
-        messages = [{'role': 'system', 
-                     'parts': [{'text': RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST)}]
-                     }]
+            
+        # gemini_model = configure_gemini_model(self.api_model, system_prompt=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST))
         
+        messages = []
+                    
         obs_prompt = "Observation: please analyze the attached screenshot and give the Thought and Action. "
 
         init_msg = RETRIEVER_FIND_WEBSITE_TASK_DESC.format(action=action, query=query, search_term=search_term) + obs_prompt
@@ -256,8 +258,11 @@ class WebBrowser:
             # Call GPT-4v API
             # prompt_tokens, completion_tokens, gpt_call_error, openai_response = call_gpt4v_api(self.client, messages, self.api_model, self.seed)
             
+            # to avoid reaching rate limit
+            time.sleep(12)
+            
             # call gemini-2.5-flash API
-            prompt_tokens, completion_tokens, gemini_call_error, gemini_response = call_gemini_api(self.api_model, messages, seed=self.seed)
+            prompt_tokens, completion_tokens, gemini_call_error, gemini_response = call_gemini_api(api_model=self.api_model, messages=messages, seed=self.seed, action=action)
 
             if gemini_call_error:
                 break
@@ -266,8 +271,8 @@ class WebBrowser:
                 accumulate_completion_token += completion_tokens
                 logging.info(f'Accumulate Prompt Tokens: {accumulate_prompt_token}; Accumulate Completion Tokens: {accumulate_completion_token}')
                 logging.info('API call complete...')
-            parts_gemini_response = parse_gemini_response(gemini_response)
-            gemini_response_text = parts_gemini_response[0].text 
+            # parts_gemini_response = parse_gemini_response(gemini_response)
+            gemini_response_text = gemini_response.text
             messages.append({'role': 'assistant', 'content': gemini_response_text})
 
             # remove the rects on the website
@@ -345,7 +350,7 @@ class WebBrowser:
                             break
 
                         if time.time() - start_time > 120:
-                            logging.info("5 minutes have passed without any change in the output directory.")
+                            logging.info("2 minutes have passed without any change in the output directory.")
                             warn_obs = "\n This is not a valid download link."
                             break
                     if downloaded:
@@ -454,16 +459,22 @@ def format_msg(it, init_msg, pdf_obs, warn_obs, web_img_b64, web_text):
     
     return curr_msg
 
-def call_gemini_api(model, messages, seed):
+def call_gemini_api(api_model, messages, seed, action):
+            
+    gemini_model = configure_gemini_model(api_model, system_prompt=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST))
+    
     retry_times = 0
     generation_conf = types.GenerationConfig(
         max_output_tokens=8192,
         seed=seed
     )
+    
     while True:
         try:
-            response = model.generate_content(
-                messages,
+            # to avoid reaching rate limit for free tier API
+            time.sleep(12)
+            response = gemini_model.generate_content(
+                contents=messages,
                 generation_config=generation_conf,
                 request_options={"timeout": 600}
             )

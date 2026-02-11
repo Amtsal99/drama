@@ -3,6 +3,7 @@ from agent.utils import COST_DICT
 
 import google.generativeai as genai
 from gemini_tool import calculate_gemini_cost
+from gemini_client import configure_gemini_model
 
 import os
 import json
@@ -10,7 +11,7 @@ import json
 class WebAugmenter:
     def __init__(self, task, client, output_path):
         self.task = task
-        self.client = client
+        self.client = configure_gemini_model("gemini-2.5-flash")
         self.output_path = output_path
 
     def run(self, query):
@@ -19,11 +20,11 @@ class WebAugmenter:
             prompt = RETRIEVER_WEBSEARCH_VERIFICATION.format(query=query)
         else:
             prompt = RETRIEVER_WEBSEARCH_QA.format(query=query)
-
         try:
-            response = self.model.generate_content(
-                prompt,
-                tools='google_search_retrieval', 
+            
+            response = self.client.generate_content(
+                contents=prompt,
+                tools=[{'google_search': {}}], 
                 generation_config=genai.GenerationConfig(
                     temperature=0.0
                 )

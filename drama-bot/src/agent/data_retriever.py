@@ -12,7 +12,7 @@ import pandas as pd
 import ast
 import logging
 
-from agent.subagents.gemini_client import get_gemini_model
+from agent.subagents.gemini_client import configure_gemini_model
 
 class DataRetriever:
     def __init__(self, task, api_key, api_model, output_path):
@@ -20,7 +20,7 @@ class DataRetriever:
         self.output_path = output_path
         self.api_model = api_model
         # self.client = OpenAI(api_key=api_key, organization=org)
-        self.client = get_gemini_model(api_model)
+        self.client = configure_gemini_model(api_model)
         self.api_key = api_key
         # self.org = org
 
@@ -120,15 +120,16 @@ class DataRetriever:
             action = "verify"
         else:
             action = "answer"
+            
+        gemini_model = configure_gemini_model(self.api_model)
 
-        response = self.client.chat.completions.create(
-            model=self.api_model,
-            messages=[
-                {"role": "user", "content": RETRIEVER_WEBSITE_RANK.format(action=action, query=query, prelim_response=augment_data_res)}
+        response = gemini_model.generate_content(
+            content=[
+                {"role": "user", "parts": [{"text": RETRIEVER_WEBSITE_RANK.format(action=action, query=query, prelim_response=augment_data_res)}]}
             ]
         )
 
-        split_parts = response.choices[0].message.content.split("#", 1)
+        split_parts = response.text.split("#", 1)
         response_content = split_parts[0].strip()
         match = re.search(r"\[.*?\]", response_content, re.DOTALL)
         if match:
