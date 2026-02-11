@@ -25,9 +25,9 @@ export const CONFIG = {
     google: {
       enabled: true,
       models: {
-        'gemini-2.5-flash': {
+        'gemini-flash': {
           enabled: true,
-          label: 'Gemini 2.5 Flash',
+          label: 'Gemini Flash',
         },
         'gemini-flash-thinking': {
           enabled: false,
