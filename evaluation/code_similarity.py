@@ -8,8 +8,11 @@ import sympy
 from transformers import AutoModel, AutoTokenizer
 from sklearn.metrics.pairwise import cosine_similarity
 from dotenv import load_dotenv
-from openai import OpenAI
+# from openai import OpenAI
+import google.generativeai as genai
 from prompts import CODE_SIMILARITY
+
+genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
 def eval_code(code1, code2, task, query_info, normalize = True, method="llm-as-a-judge"):
     
@@ -32,18 +35,15 @@ def eval_code_llm(code1, code2, query, action):
     messages = [
         {
             "role": "user",
-            "content": CODE_SIMILARITY.format(query=query, code1=code1, code2=code2, action=action)
+            "parts": [{"text": CODE_SIMILARITY.format(query=query, code1=code1, code2=code2, action=action)}]
         }
     ]
     load_dotenv()
-    openai_api_key = os.getenv('OPENAI_API_KEY')
-    openai_org = os.getenv('OPENAI_ORG')
-    client = OpenAI(api_key=openai_api_key, organization=openai_org)
+    # openai_api_key = os.getenv('OPENAI_API_KEY')
+    # openai_org = os.getenv('OPENAI_ORG')
+    gemini_model = genai.GenerativeModel("gemini-2.5-flash")
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-    ).choices[0].message.content
+    response = gemini_model.generate_content(contents=messages).text
 
     return float(response)
 
