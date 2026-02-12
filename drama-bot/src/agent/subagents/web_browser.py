@@ -31,7 +31,7 @@ class WebBrowser:
     def __init__(self, api_model, client: genai.Client, output_dir, task):
         # self.client = OpenAI(api_key=api_key, organization=org)
         self.client = client
-        self.max_iter = 1
+        self.max_iter = 10
         self.api_model = api_model
         self.output_dir = output_dir
         self.window_width = 1024
@@ -135,7 +135,7 @@ class WebBrowser:
             }
         ]
 
-        time.sleep(12)
+        # time.sleep(12)
         response = self.client.models.generate_content(
             model=self.api_model,
             contents=contents,
@@ -470,7 +470,7 @@ def call_gemini_api(client: genai.Client, api_model, messages, seed, action):
     while True:
         try:
             # to avoid reaching rate limit for free tier API
-            time.sleep(12)
+            # time.sleep(12)
             response:types.GenerateContentResponse = client.models.generate_content(
                 model=api_model,
                 contents=messages,

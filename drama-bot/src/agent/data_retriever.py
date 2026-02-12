@@ -56,7 +56,7 @@ class DataRetriever:
 
         logging.info("🪄 Data Transformer Starts")
         try:
-            self.data_transformer.run(query) 
+            res, generated_code = self.data_transformer.run(query) 
         except:
             pass
 
@@ -64,7 +64,7 @@ class DataRetriever:
         extracted = True
         if os.path.exists(file_path):
             df = pd.read_csv(file_path)
-            if df.empty:
+            if df.empty or not res:
                 extracted = False
         else:
             extracted = False
@@ -101,13 +101,13 @@ class DataRetriever:
                 _search_path = self.web_browser.run(query, website)
 
                 logging.info("🪄 Data Transformer Starts")
-                self.data_transformer.run(query)
+                res, generated_code = self.data_transformer.run(query)
             except:
                 return search_path
             extracted = True
             if os.path.exists(file_path):
                 df = pd.read_csv(file_path)
-                if df.empty:
+                if df.empty or not res:
                     extracted = False
             else:
                 extracted = False

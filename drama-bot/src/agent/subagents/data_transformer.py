@@ -31,17 +31,19 @@ class DataTransformer:
         self.api_key = api_key
         self.checked_files = []
     
-    def run(self, query):
+    def run(self, query) :
         all_files = os.listdir(self.output_path)
         filtered_files = [
             f for f in all_files
             if os.path.isfile(os.path.join(self.output_path, f)) and not fnmatch.fnmatch(f, "screenshot*.png") and f != "output.json"
         ]
+        checked_files = []
         while len(self.checked_files) != len(filtered_files):
             res1, res2 = self.check_enough_info(query)
             if res1 == "True":
                 return True, res2
-            file = self.file_selection(query, res2)
+            file = self.file_selection(query, res2, checked_files)
+            checked_files.append(file)
 
             if file.endswith(".pdf"):
                 self.pdf_analyzer(query, file, res2)
@@ -50,6 +52,10 @@ class DataTransformer:
             elif file.endswith(".xlsx") or file.endswith(".xlsx"):
                 self.excel_converter(query, file, res2)
             self.checked_files.append(file)
+            
+        res1, res2 = self.check_enough_info(query)
+        return True if res1 == "True" else False, res2    
+        
     
     def jointables(self, query, df1, df2, missing_info):
         if self.task == "verification":
@@ -149,7 +155,7 @@ class DataTransformer:
                 return res1, res2
         return planner()
     
-    def file_selection(self, query, missing_info):
+    def file_selection(self, query, missing_info, checked_files):
         all_files = os.listdir(self.output_path)  # List all files in the directory
         filtered_files = [
             f for f in all_files
@@ -202,7 +208,7 @@ class DataTransformer:
         else:
             action = "answer"
 
-        prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content)
+        prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content, checked_files=checked_files)
         
         # gemini_model = configure_gemini_model(self.api_model)
         

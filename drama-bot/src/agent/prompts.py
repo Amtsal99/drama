@@ -100,7 +100,7 @@ Without specification, the data refers to that in USA.
 
 RETRIEVER_FILE_SELECTION_TASK_DESC = """
 To {action} the query "{query}", you are provided with the following files: {filtered_files}.
-Your job is to identify which ONE file contains the data to answer the query.
+Your job is to identify which ONE file contains the data to answer the query. you cannot pick a file from {checked_files} which already checked previously.
 You currently missing these information: {missing_info}.
 {readme_content}
 You should output and only output the file name.
