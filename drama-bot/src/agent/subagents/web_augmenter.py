@@ -1,17 +1,18 @@
 from agent.prompts import RETRIEVER_WEBSEARCH_VERIFICATION, RETRIEVER_WEBSEARCH_QA
 from agent.utils import COST_DICT
 
-import google.generativeai as genai
-from gemini_tool import calculate_gemini_cost
-from gemini_client import configure_gemini_model
+from .gemini_tool import calculate_gemini_cost
+from google import genai
+from google.genai import types
 
 import os
 import json
 
 class WebAugmenter:
-    def __init__(self, task, client, output_path):
+    def __init__(self, task, client: genai.Client, api_model, output_path):
         self.task = task
-        self.client = configure_gemini_model("gemini-2.5-flash")
+        self.api_model = api_model
+        self.client = client
         self.output_path = output_path
 
     def run(self, query):
@@ -22,12 +23,16 @@ class WebAugmenter:
             prompt = RETRIEVER_WEBSEARCH_QA.format(query=query)
         try:
             
-            response = self.client.generate_content(
+            response = self.client.models.generate_content(
+                model=self.api_model,
                 contents=prompt,
-                tools=[{'google_search': {}}], 
-                generation_config=genai.GenerationConfig(
-                    temperature=0.0
-                )
+                # tools=[{'google_search': {}}], 
+                config=types.GenerateContentConfig(
+                    tools = [types.Tool(google_search=types.GoogleSearch()), ],
+                    temperature=0.0,
+                    response_modalities=["TEXT"]
+                ),
+                
             )
             if not response.parts:
                     print("Warning: WebAugmenter response blocked.")

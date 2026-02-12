@@ -62,7 +62,7 @@ class DataTransformer:
         time.sleep(12)  # to avoid reaching rate limit for free tier API
         
         # gemini_model = configure_gemini_model(self.api_model, system_prompt="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.")
-        config = types.GenerateContentConfig(
+        gen_config = types.GenerateContentConfig(
             system_instruction="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.",
         )
         
@@ -71,7 +71,7 @@ class DataTransformer:
             contents=[
                 {"role": "user", "parts": [{"text": prompt}]}
             ],
-            generation_config=config
+            config=gen_config
         )
 
         cost = calculate_gemini_cost(response, model_name=self.api_model)
@@ -281,9 +281,10 @@ class DataTransformer:
                 # response_json = response.json()
                 response = self.client.models.generate_content(
                     contents=content,
-                    generation_config=types.GenerationConfig(max_output_tokens=4096, 
-                                                             temperature=0.0),
-                    request_option={"timeout": 600}
+                    config=types.GenerateContentConfig(max_output_tokens=4096, 
+                                                  temperature=0.0,
+                                                  http_options=types.HttpOptions(timeout=600)
+                                                  ),
                 )
                 
                 if not response.parts:

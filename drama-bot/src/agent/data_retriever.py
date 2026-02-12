@@ -37,7 +37,11 @@ class DataRetriever:
             output_path=self.output_path,
             task=task
         )
-        self.web_augmenter = WebAugmenter(task=task, client=self.client, output_path=output_path)
+        self.web_augmenter = WebAugmenter(
+            task=task, 
+            client=self.client, 
+            api_model=self.api_model,
+            output_path=output_path)
 
     def run(self, query):
         search_path = []

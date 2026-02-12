@@ -137,6 +137,7 @@ class WebBrowser:
 
         time.sleep(12)
         response = self.client.models.generate_content(
+            model=self.api_model,
             contents=contents,
         )
 
@@ -260,7 +261,7 @@ class WebBrowser:
             time.sleep(12)
             
             # call gemini-2.5-flash API
-            prompt_tokens, completion_tokens, gemini_call_error, gemini_response = call_gemini_api(client=self.client, messages=messages, seed=self.seed, action=action)
+            prompt_tokens, completion_tokens, gemini_call_error, gemini_response = call_gemini_api(client=self.client, api_model=self.api_model, messages=messages, seed=self.seed, action=action)
 
             if gemini_call_error:
                 break
@@ -454,7 +455,7 @@ def format_msg(it, init_msg, pdf_obs, warn_obs, img_path, web_text):
     
     return curr_msg
 
-def call_gemini_api(client: genai.Client, messages, seed, action):
+def call_gemini_api(client: genai.Client, api_model, messages, seed, action):
             
     # gemini_model = configure_gemini_model(api_model, system_prompt=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST))
     
@@ -462,7 +463,8 @@ def call_gemini_api(client: genai.Client, messages, seed, action):
     generation_conf = types.GenerateContentConfig(
         system_instructions=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST),
         max_output_tokens=8192,
-        seed=seed
+        seed=seed,
+        http_options=types.HttpOptions(timeout=600)
     )
     
     while True:
@@ -470,9 +472,9 @@ def call_gemini_api(client: genai.Client, messages, seed, action):
             # to avoid reaching rate limit for free tier API
             time.sleep(12)
             response:types.GenerateContentResponse = client.models.generate_content(
+                model=api_model,
                 contents=messages,
-                generation_config=generation_conf,
-                request_options={"timeout": 600}
+                config=generation_conf
             )
             if not response.parts:
                 logging.warning(f"Gemini response blocked by safety filters. Feedback: {response.prompt_feedback}")

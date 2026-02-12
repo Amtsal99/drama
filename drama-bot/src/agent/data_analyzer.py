@@ -7,10 +7,11 @@ import re
 import json
 import logging
 
+from google import genai
 from agent.subagents.gemini_tool import calculate_gemini_cost
 
 class DataAnalyzer:
-    def __init__(self, task, api_key, api_model, org, output_path, client):
+    def __init__(self, task, api_key, api_model, org, output_path, client:genai.Client):
         self.client = client
         self.task = task
         # self.client = get_gemini_model(api_model)
@@ -51,7 +52,8 @@ class DataAnalyzer:
              ]}
         ]
         
-        response = self.client.generate_content(contents=contents)
+        response = self.client.models.generate_content(model = self.api_model,
+                                                       contents=contents)
         
         pandas_code = response.text.strip()
         pandas_code = re.sub(r'```python\n|```', '', pandas_code)
