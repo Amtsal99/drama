@@ -15,18 +15,20 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
-from google.api_core import exceptions
-from google.generativeai import types
+
+from google import genai
+# from google.api_core import exceptions
+from google.genai import types, errors as exceptions
+# from google.genai import exceptions
 
 from .utils_webbrowser import get_web_element_rect, encode_image, extract_information, get_webarena_accessibility_tree, clip_message_and_obs
 from .gemini_tool import calculate_gemini_cost
-from gemini_client import configure_gemini_model
 
 from agent.prompts import RETRIEVER_FIND_WEBSITE_TASK_DESC, RETRIEVER_SEARCH_TERM_DESC, RETRIEVER_BROWSE_SYSTEM_PROMPT
 from agent.utils import BLACKLIST, COST_DICT
 
 class WebBrowser:
-    def __init__(self, api_model, client, output_dir, task):
+    def __init__(self, api_model, client: genai.Client, output_dir, task):
         # self.client = OpenAI(api_key=api_key, organization=org)
         self.client = client
         self.max_iter = 1
@@ -123,7 +125,6 @@ class WebBrowser:
         else:
             action = "answer"
         
-        gemini_model = configure_gemini_model(self.api_model)
         # convert to gemini standard json format 
         contents = [
             {
@@ -135,7 +136,7 @@ class WebBrowser:
         ]
 
         time.sleep(12)
-        response = gemini_model.generate_content(
+        response = self.client.models.generate_content(
             contents=contents,
         )
 
@@ -240,11 +241,8 @@ class WebBrowser:
                     accessibility_tree_path = os.path.join(self.output_dir, 'accessibility_tree{}'.format(it))
                     get_webarena_accessibility_tree(driver_task, accessibility_tree_path)
 
-                # encode image
-                b64_img = encode_image(img_path)
-
                 # format msg
-                curr_msg = format_msg(it, init_msg, pdf_obs, warn_obs, b64_img, web_eles_text)
+                curr_msg = format_msg(it, init_msg, pdf_obs, warn_obs, img_path, web_eles_text)
                 messages.append(curr_msg)
             else:
                 curr_msg = {
@@ -262,7 +260,7 @@ class WebBrowser:
             time.sleep(12)
             
             # call gemini-2.5-flash API
-            prompt_tokens, completion_tokens, gemini_call_error, gemini_response = call_gemini_api(api_model=self.api_model, messages=messages, seed=self.seed, action=action)
+            prompt_tokens, completion_tokens, gemini_call_error, gemini_response = call_gemini_api(client=self.client, messages=messages, seed=self.seed, action=action)
 
             if gemini_call_error:
                 break
@@ -429,42 +427,40 @@ def driver_config(save_accessibility_tree, force_device_scale, headless, downloa
     return options
 
 
-def format_msg(it, init_msg, pdf_obs, warn_obs, web_img_b64, web_text):
-    if "base64," in web_img_b64:
-        web_img_b64 = web_img_b64.split("base64,")[1]
-        
+def format_msg(it, init_msg, pdf_obs, warn_obs, img_path, web_text):
     guidance_text = f"I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"
+    
     if it == 1:
         text_content = f"{init_msg}{guidance_text}"
-        
     else:
         if not pdf_obs:
             text_content = f"Observation:{warn_obs} please analyze the attached screenshot and give the Thought and Action. {guidance_text}"
         else:
             text_content = f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The screenshot of the current page is also attached, give the Thought and Action. {guidance_text}"
-    curr_msg = {
-        'role': 'user',
-        'parts': [
-            {
-                'text': text_content
-            },
-            {
-                'inline_data': {
-                    'mime_type': 'image/png', 
-                    'data': web_img_b64
-                }
-            }
+
+    with open(img_path, 'rb') as f:
+        image_bytes = f.read()
+
+    curr_msg = types.Content(
+        role='user',
+        parts=[
+            types.Part.from_text(text=text_content),
+            types.Part.from_bytes(
+                data=image_bytes,
+                mime_type='image/png'
+            )
         ]
-    }
+    )
     
     return curr_msg
 
-def call_gemini_api(api_model, messages, seed, action):
+def call_gemini_api(client: genai.Client, messages, seed, action):
             
-    gemini_model = configure_gemini_model(api_model, system_prompt=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST))
+    # gemini_model = configure_gemini_model(api_model, system_prompt=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST))
     
     retry_times = 0
-    generation_conf = types.GenerationConfig(
+    generation_conf = types.GenerateContentConfig(
+        system_instructions=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST),
         max_output_tokens=8192,
         seed=seed
     )
@@ -473,7 +469,7 @@ def call_gemini_api(api_model, messages, seed, action):
         try:
             # to avoid reaching rate limit for free tier API
             time.sleep(12)
-            response = gemini_model.generate_content(
+            response:types.GenerateContentResponse = client.models.generate_content(
                 contents=messages,
                 generation_config=generation_conf,
                 request_options={"timeout": 600}
@@ -483,28 +479,36 @@ def call_gemini_api(api_model, messages, seed, action):
                 return None, None, True, None
             
             prompt_tokens = response.usage_metadata.prompt_token_count
-            completion_tokens = response.usage_metadata.completion_token_count
+            completion_tokens = response.usage_metadata.candidates_token_count
             
             gemini_call_error = False
             
             return prompt_tokens, completion_tokens, gemini_call_error, response
             
-        except exceptions.ResourceExhausted as e:
-            logging.info(f'Gemini Quota Exceeded (Rate Limit), retrying... Error: {e}')
-            time.sleep(10)
-
-        except exceptions.ServiceUnavailable as e:
-            logging.info(f'Gemini Service Unavailable (Overloaded), retrying... Error: {e}')
-            time.sleep(15)
+        except exceptions.APIError as e: 
+            if e.code == 429:
+                logging.info(f'Gemini Quota Exceeded (Rate Limit), retrying... Error: {e.message}')
+                time.sleep(10)
             
-        except exceptions.InternalServerError as e:
-            logging.info(f'Gemini Internal Server Error, retrying... Error: {e}')
-            time.sleep(15)
-
-        except exceptions.InvalidArgument as e:
-            logging.error(f'Fatal Input Error: {e}')
-            return None, None, True, None
-
+            elif e.code == 503:
+                logging.info(f'Gemini Service Unavailable (Overloaded), retrying... Error: {e.message}')
+                time.sleep(15)
+                
+            elif e.code == 500:
+                logging.info(f'Gemini Internal Server Error, retrying... Error: {e.message}')
+                time.sleep(15)
+                
+            elif e.code == 400:
+                logging.error(f'Fatal Input Error: {e.message}')
+                return None, None, True, None
+                
+            else:
+                logging.error(f'Other API Error ({e.code}): {e.message}')
+                retry_times += 1
+                time.sleep(5)
+                logging.error(f'Unknown Error occurred: {type(e).__name__} - {e}')
+                return None, None, True, None
+            
         except Exception as e:
             logging.error(f'Unknown Error occurred: {type(e).__name__} - {e}')
             return None, None, True, None

@@ -4,7 +4,8 @@ from .subagents import WebBrowser, DataTransformer, WebAugmenter
 
 from io import StringIO
 # from openai import OpenAI
-import google.generativeai as genai
+from google import genai
+
 
 import os
 import re
@@ -12,15 +13,13 @@ import pandas as pd
 import ast
 import logging
 
-from agent.subagents.gemini_client import configure_gemini_model
-
 class DataRetriever:
-    def __init__(self, task, api_key, api_model, output_path):
+    def __init__(self, task, api_key, api_model, output_path, client: genai.Client):
         self.task = task
         self.output_path = output_path
         self.api_model = api_model
         # self.client = OpenAI(api_key=api_key, organization=org)
-        self.client = configure_gemini_model(api_model)
+        self.client = client
         self.api_key = api_key
         # self.org = org
 
@@ -121,9 +120,9 @@ class DataRetriever:
         else:
             action = "answer"
             
-        gemini_model = configure_gemini_model(self.api_model)
+        # gemini_model = configure_gemini_model(self.api_model)
 
-        response = gemini_model.generate_content(
+        response = self.client.models.generate_content(
             content=[
                 {"role": "user", "parts": [{"text": RETRIEVER_WEBSITE_RANK.format(action=action, query=query, prelim_response=augment_data_res)}]}
             ]

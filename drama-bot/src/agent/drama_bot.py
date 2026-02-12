@@ -2,6 +2,7 @@ from agent.data_retriever import DataRetriever
 from agent.data_analyzer import DataAnalyzer
 
 from dotenv import load_dotenv
+from google import genai
 
 import os
 import json
@@ -22,9 +23,11 @@ class DramaBot:
         # self.openai_api_key = os.getenv('OPENAI_API_KEY')
         # self.openai_org = os.getenv('OPENAI_ORG')
         self.google_api_key = os.getenv('GOOGLE_API_KEY')
-
-        self.data_retriever = DataRetriever(task = self.task, api_key = self.google_api_key, api_model = api_model, output_path = self.output_path)
-        self.data_analyzer = DataAnalyzer(task = self.task, api_key = self.google_api_key, api_model = api_model, output_path = self.output_path)
+        
+        gemini_client = genai.Client(api_key=self.google_api_key)
+        
+        self.data_retriever = DataRetriever(task = self.task, api_key = self.google_api_key, api_model = api_model, output_path = self.output_path, client=gemini_client)
+        self.data_analyzer = DataAnalyzer(task = self.task, api_key = self.google_api_key, api_model = api_model, output_path = self.output_path, client=gemini_client)
 
     def run(self, query):
         logging.info(f"📂 Data Retriever Starts")

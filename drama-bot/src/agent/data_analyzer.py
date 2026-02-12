@@ -7,13 +7,11 @@ import re
 import json
 import logging
 
-from agent.subagents.gemini_client import configure_gemini_model
 from agent.subagents.gemini_tool import calculate_gemini_cost
 
-from openai import OpenAI
-
 class DataAnalyzer:
-    def __init__(self, task, api_key, api_model, org, output_path):
+    def __init__(self, task, api_key, api_model, org, output_path, client):
+        self.client = client
         self.task = task
         # self.client = get_gemini_model(api_model)
         self.api_model = api_model
@@ -44,7 +42,7 @@ class DataAnalyzer:
         else:
             prompt = ANALYZER_CODE_GEN_QA_TASK_DESC.format(query=query, df_columns=df.columns, df_head=df.head())
             
-        gemini_model = configure_gemini_model(self.api_model, system_prompt="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.")
+        # gemini_model = configure_gemini_model(self.api_model, system_prompt="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.")
 
         contents = [
             {"role": "user",
