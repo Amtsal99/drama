@@ -8,7 +8,9 @@ import numpy as np
 from PIL import Image
 from utils_webarena import fetch_browser_info, fetch_page_accessibility_tree,\
                     parse_accessibility_tree, clean_accesibility_tree
-import google.generativeai as genai
+
+from google import genai
+from google.genai import types
 
 
 def resize_image(image_path):
@@ -460,85 +462,48 @@ def compare_images(img1_path, img2_path):
 
     return total_difference
 
-
-def get_pdf_retrieval_ans_from_assistant(client, pdf_path, task):
-    # print("You download a PDF file that will be retrieved using the Assistant API.")
-    logging.info("You download a PDF file that will be retrieved using the Assistant API.")
-    file = client.files.create(
-        file=open(pdf_path, "rb"),
-        purpose='assistants'
-    )
-    # print("Create assistant...")
-    logging.info("Create assistant...")
-    assistant = client.beta.assistants.create(
-        instructions="You are a helpful assistant that can analyze the content of a PDF file and give an answer that matches the given task, or retrieve relevant content that matches the task.",
-        model="gpt-4-1106-preview",
-        tools=[{"type": "retrieval"}],
-        file_ids=[file.id]
-    )
-    thread = client.beta.threads.create()
-    message = client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content=task,
-        file_ids=[file.id]
-    )
-    run = client.beta.threads.runs.create(
-        thread_id=thread.id,
-        assistant_id=assistant.id
-    )
-    while True:
-        # Retrieve the run status
-        run_status = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-        if run_status.status == 'completed':
-            break
-        time.sleep(2)
-    messages = client.beta.threads.messages.list(thread_id=thread.id)
-    messages_text = messages.data[0].content[0].text.value
-    file_deletion_status = client.beta.assistants.files.delete(
-        assistant_id=assistant.id,
-        file_id=file.id
-    )
-    # print(file_deletion_status)
-    logging.info(file_deletion_status)
-    assistant_deletion_status = client.beta.assistants.delete(assistant.id)
-    # print(assistant_deletion_status)
-    logging.info(assistant_deletion_status)
-    return messages_text
-
-def get_pdf_retrieval_ans_from_assistant(pdf_path, task, model_name="gemini-2.5-flash"):
-    logging.info(f"Uploading PDF file {pdf_path} to Gemini...")
-
-    pdf_file = genai.upload_file(pdf_path)
-
-    logging.info(f"Waiting for file processing: {pdf_file.name}")
-    while pdf_file.state.name == "PROCESSING":
-        time.sleep(2)
-        pdf_file = genai.get_file(pdf_file.name)
-
-    if pdf_file.state.name == "FAILED":
-        logging.error("File processing failed.")
-        raise ValueError("File processing failed.")
-
-    logging.info("File processing completed. Generating answer...")
-
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        system_instruction="You are a helpful assistant that can analyze the content of a PDF file and give an answer that matches the given task, or retrieve relevant content that matches the task."
-    )
-
-    try:
-        response = model.generate_content([task, pdf_file])
-        answer = response.text
-    except Exception as e:
-        logging.error(f"Error generating content: {e}")
-        answer = "Error generating response from Gemini."
+def get_pdf_retrieval_ans_from_assistant(client:genai.Client, pdf_path, task, api_model="gemini-2.5-flash"):
+    logging.info("Uploading PDF file to Gemini...")
     
-    logging.info("Cleaning up file...")
-    try:
-        pdf_file.delete()
-        logging.info("File deleted successfully.")
-    except Exception as e:
-        logging.warning(f"Failed to delete file: {e}")
+    file_ref = client.files.upload(file=pdf_path)
+    
+    while file_ref.state.name == "PROCESSING":
+        logging.info("Waiting for file processing...")
+        time.sleep(2)
+        file_ref = client.files.get(name=file_ref.name)
+        
+    if file_ref.state.name == "FAILED":
+        raise ValueError(f"File upload failed: {file_ref.uri}")
 
-    return answer
+    logging.info(f"File ready: {file_ref.name}")
+
+    try:
+        logging.info("Analyzing content...")
+        
+        response = client.models.generate_content(
+            model=api_model,
+            contents=[
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_text(text=task),
+                        types.Part.from_uri(
+                            file_uri=file_ref.uri,
+                            mime_type=file_ref.mime_type
+                        )
+                    ]
+                )
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction="You are a helpful assistant that can analyze the content of a PDF file and give an answer that matches the given task.",
+                temperature=0.0
+            )
+        )
+        
+        messages_text = response.text
+
+    finally:
+        logging.info("Deleting file from server...")
+        client.files.delete(name=file_ref.name)
+
+    return messages_text

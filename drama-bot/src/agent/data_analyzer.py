@@ -11,14 +11,13 @@ from google import genai
 from agent.subagents.gemini_tool import calculate_gemini_cost
 
 class DataAnalyzer:
-    def __init__(self, task, api_key, api_model, org, output_path, client:genai.Client):
+    def __init__(self, task, api_key, api_model, output_path, client:genai.Client):
         self.client = client
         self.task = task
         # self.client = get_gemini_model(api_model)
         self.api_model = api_model
         self.output_path = output_path
         self.api_key = api_key
-        self.org = org
 
     def run(self, query):
 

@@ -12,14 +12,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 
-import google.generativeai as genai
-from google.api_core import exceptions
-from google.generativeai import types
+from google import genai
+from google.genai import errors as exceptions
+from google.genai import types
 
 from concurrent.futures import ThreadPoolExecutor
 
 from prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_TEXT_ONLY, QA_PROMPT, VERIFICATION_PROMPT, QA_CODECSV_INSTRUCTIONS, VALIDATION_CODECSV_INSTRUCTIONS
-from openai import OpenAI
 from utils import get_web_element_rect, encode_image, extract_information, print_message,\
     get_webarena_accessibility_tree, get_pdf_retrieval_ans_from_assistant, clip_message_and_obs, clip_message_and_obs_text_only, process_output, plan_search_term
 
@@ -122,46 +121,55 @@ def format_msg_text_only(it, init_msg, pdf_obs, warn_obs, ac_tree):
         return curr_msg
 
 
-def call_gemini_api(model, messages, seed):
+def call_gemini_api(client:genai.Client, api_model, messages, seed=42):
     retry_times = 0
-    generation_conf = types.GenerationConfig(
+    generation_conf = types.GenerateContentConfig(
         max_output_tokens=8192,
-        seed=seed
+        seed=seed,
+        http_options=types.HttpOptions(timeout=600)
     )
     while True:
         try:
-            response = model.generate_content(
-                messages,
-                generation_config=generation_conf,
-                request_options={"timeout": 600}
+            response:types.GenerateContentResponse = client.models.generate_content(
+                model=api_model,
+                contents=messages,
+                config=generation_conf,
             )
             if not response.parts:
                 logging.warning(f"Gemini response blocked by safety filters. Feedback: {response.prompt_feedback}")
                 return None, None, True, None
             
             prompt_tokens = response.usage_metadata.prompt_token_count
-            completion_tokens = response.usage_metadata.completion_token_count
+            completion_tokens = response.usage_metadata.candidates_token_count
             
             gemini_call_error = False
             
             return prompt_tokens, completion_tokens, gemini_call_error, response
             
-        except exceptions.ResourceExhausted as e:
-            logging.info(f'Gemini Quota Exceeded (Rate Limit), retrying... Error: {e}')
-            time.sleep(10)
-
-        except exceptions.ServiceUnavailable as e:
-            logging.info(f'Gemini Service Unavailable (Overloaded), retrying... Error: {e}')
-            time.sleep(15)
+        except exceptions.APIError as e: 
+            if e.code == 429:
+                logging.info(f'Gemini Quota Exceeded (Rate Limit), retrying... Error: {e.message}')
+                time.sleep(10)
             
-        except exceptions.InternalServerError as e:
-            logging.info(f'Gemini Internal Server Error, retrying... Error: {e}')
-            time.sleep(15)
-
-        except exceptions.InvalidArgument as e:
-            logging.error(f'Fatal Input Error: {e}')
-            return None, None, True, None
-
+            elif e.code == 503:
+                logging.info(f'Gemini Service Unavailable (Overloaded), retrying... Error: {e.message}')
+                time.sleep(15)
+                
+            elif e.code == 500:
+                logging.info(f'Gemini Internal Server Error, retrying... Error: {e.message}')
+                time.sleep(15)
+                
+            elif e.code == 400:
+                logging.error(f'Fatal Input Error: {e.message}')
+                return None, None, True, None
+                
+            else:
+                logging.error(f'Other API Error ({e.code}): {e.message}')
+                retry_times += 1
+                time.sleep(5)
+                logging.error(f'Unknown Error occurred: {type(e).__name__} - {e}')
+                return None, None, True, None
+            
         except Exception as e:
             logging.error(f'Unknown Error occurred: {type(e).__name__} - {e}')
             return None, None, True, None
@@ -244,18 +252,21 @@ def exec_action_scroll(info, web_eles, driver_task, args, obs_info):
             actions.key_down(Keys.ALT).send_keys(Keys.ARROW_UP).key_up(Keys.ALT).perform()
     time.sleep(3)
 
-def run_single_task(task, args, client, result_dir, options):
+def run_single_task(task, args, client:genai.Client, api_model, result_dir, options):
     visited_urls = []
     query_prompt = plan_search_term(task['ques'], args.test_task)
     
-    gen_conf = types.GenerationConfig(
+    gen_conf = types.GenerateContentConfig(
         temperature=args.temperature,
         max_output_tokens=1000,
-        seed=args.seed
+        seed=args.seed,
+        http_options=types.HttpOptions(timeout=600)
     )
     
-    response = client.generate_content(
-        messages=query_prompt, generation_config=gen_conf, request_options={"timeout": 30}
+    response = client.models.generate_content(
+        model=api_model,
+        contents=query_prompt, 
+        config=gen_conf, 
     )
     searchable_query = response.text
 
@@ -387,7 +398,7 @@ def run_single_task(task, args, client, result_dir, options):
                 'parts': [{"text": QA_CODECSV_INSTRUCTIONS}]
             }
             messages.append(code_csv_message)
-        prompt_tokens, completion_tokens, call_error, response = call_gemini_api(args, client, messages)
+        prompt_tokens, completion_tokens, call_error, response = call_gemini_api(client=client, api_model=api_model, messages=messages, seed=args.seed)
 
         if call_error:
             break
@@ -456,7 +467,7 @@ def run_single_task(task, args, client, result_dir, options):
                     current_download_file = [pdf_file for pdf_file in current_files if pdf_file not in download_files and pdf_file.endswith('.pdf')]
                     if current_download_file:
                         pdf_file = current_download_file[0]
-                        pdf_obs = get_pdf_retrieval_ans_from_assistant(client, os.path.join(args.download_dir, pdf_file), searchable_query)
+                        pdf_obs = get_pdf_retrieval_ans_from_assistant(client=client, pdf_path=os.path.join(args.download_dir, pdf_file), task=searchable_query, api_model=api_model)
                         shutil.copy(os.path.join(args.download_dir, pdf_file), task_dir)
                         pdf_obs = "You downloaded a PDF file, I ask the Assistant API to answer the task based on the PDF file and get the following response: " + pdf_obs
                     download_files = current_files
@@ -554,18 +565,7 @@ def main():
     raw_dir = os.path.join(args.output_dir, "raw")
     os.makedirs(raw_dir, exist_ok=True)
 
-    # Wipe directory as needed
-    # with os.scandir(raw_dir) as entries:
-    #     for entry in entries:
-    #         if entry.is_file():
-    #             os.unlink(entry.path)
-    #         elif entry.is_dir():
-    #             shutil.rmtree(entry.path)
-
-    # OpenAI client
-    # client = OpenAI(api_key=args.api_key)
-    # gemini client
-    client = genai.GenerativeModel(model_name=args.api_model, api_key=args.api_key)
+    client = genai.Client(api_key=args.api_key)
     options = driver_config(args)
 
     # Save Result file
@@ -582,7 +582,7 @@ def main():
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
         futures = []
         for task_id in range(len(tasks)):
-            f = executor.submit(run_single_task, tasks[task_id], args, client, result_dir, options)
+            f = executor.submit(run_single_task, tasks[task_id], args, client, args.api_model, result_dir, options)
             futures.append(f)
 
     print("All tasks done in parallel!")

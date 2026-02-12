@@ -5,12 +5,12 @@ import logging
 import pandas as pd
 import numpy as np
 
-from agent.subagents.gemini_client import init_gemini_client
+# from agent.subagents.gemini_tool import init_gemini_client
 
 from agent.drama_bot import DramaBot
 
 # initialize Gemini client
-init_gemini_client(os.getenv('GOOGLE_API_KEY'))
+# init_gemini_client(os.getenv('GOOGLE_API_KEY'))
 
 def drama_bot_pipeline(model, task, id, output_path, report_folder):
     def convert_np(obj):

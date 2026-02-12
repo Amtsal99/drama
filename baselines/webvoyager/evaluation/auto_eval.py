@@ -6,9 +6,8 @@ import re
 import base64
 
 # from openai import OpenAI
-import google.generativeai as genai
-from google.generativeai import types
-
+from google import genai
+from google.genai import types, errors
 
 SYSTEM_PROMPT = """As an evaluator, you will be presented with three primary components to assist you in your role:
 
@@ -39,7 +38,7 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode('utf-8')
 
 
-def auto_eval_by_gemini(process_dir, client, api_model, img_num):
+def auto_eval_by_gemini(process_dir, client:genai.Client, img_num, api_model="gemini-2.5-flash"):
     print(f'--------------------- {process_dir} ---------------------')
     res_files = sorted(os.listdir(process_dir))
     with open(os.path.join(process_dir, 'interact_messages.json')) as fr:
@@ -67,76 +66,85 @@ def auto_eval_by_gemini(process_dir, client, api_model, img_num):
     matches_ans = re.search(pattern_ans, ans_info)
     answer_content = matches_ans.group(1).strip()
 
-    # max_screenshot_id = max([int(f[10:].split('.png')[0]) for f in os.listdir(process_dir) if '.png' in f])
-    # final_screenshot = f'screenshot{max_screenshot_id}.png'
-    # b64_img = encode_image(os.path.join(process_dir, final_screenshot))
-    whole_content_img = []
     pattern_png = r'screenshot(\d+)\.png'
     matches = [(filename, int(re.search(pattern_png, filename).group(1))) for filename in res_files if re.search(pattern_png, filename)]
     matches.sort(key=lambda x: x[1])
     end_files = matches[-img_num:]
-    for png_file in end_files:
-        b64_img = encode_image(os.path.join(process_dir, png_file[0]))
-        whole_content_img.append(
-            {
-                'inline_data': {
-                    'mime_type': 'image/png',
-                    'data': b64_img
-                }
-            }
-        )
 
     user_prompt_tmp = USER_PROMPT.replace('<task>', task_content)
     user_prompt_tmp = user_prompt_tmp.replace('<answer>', answer_content)
     user_prompt_tmp = user_prompt_tmp.replace('<num>', str(img_num))
-    messages = [
-        {'role': 'system', 'parts': [{"text": SYSTEM_PROMPT}]},
-        {
-            'role': 'user',
-            'parts': [
-                {'text': user_prompt_tmp}
-            ]
-            + whole_content_img
-            + [{'text': "Your verdict:\n"}]
-        }
-    ]
+    
+    message_parts = []
+    message_parts.append(types.Part.from_text(text=user_prompt_tmp))
+    
+    for png_file in end_files:
+        file_path = os.path.join(process_dir, png_file[0])
+        
+        with open(file_path, 'rb') as f:
+            image_bytes = f.read()
+            
+        message_parts.append(
+            types.Part.from_bytes(
+                data=image_bytes,
+                mime_type='image/png'
+            )
+        )
+        
+    message_parts.append(types.Part.from_text(text="Your verdict:\n"))
+    
     while True:
         try:
             print('Calling gemini API to get the auto evaluation......')
-            gen_conf = types.GenerationConfig(
+            gen_conf = types.GenerateContentConfig(
+                system_instruction=SYSTEM_PROMPT,
                 temperature=0.0,
                 max_output_tokens=1000,
                 seed=42
             )
-            response = client.generate_content(
-                messages=messages, 
+            response:types.GenerateContentResponse = client.models.generate_content(
+                model=api_model,
+                contents=types.Content(role="user",
+                                       parts=message_parts), 
                 generation_config=gen_conf
             )
-            print('Prompt Tokens:', response.usage.prompt_tokens, ';',
-                  'Completion Tokens:', response.usage.completion_tokens)
-            print('Cost:', response.usage_metadata.prompt_tokens * COST_PER_PROMPT_TOKEN + response.usage.completion_tokens * COST_PER_COMPLETION_TOKEN)
+            usage = response.usage_metadata
+            prompt_tokens = usage.prompt_token_count or 0
+            completion_tokens = usage.candidates_token_count or 0
+            
+            print('Prompt Tokens:', prompt_tokens, ';',
+                'Completion Tokens:', completion_tokens)
+            print('Prompt Tokens:', response.usage_metadata.prompt_token_count, ';',
+                  'Completion Tokens:', response.usage_metadata.candidates_token_count)
+            
+            total_cost = (prompt_tokens * COST_PER_PROMPT_TOKEN) + (completion_tokens * COST_PER_COMPLETION_TOKEN)
+            print("Cost: ", total_cost)
 
             print('API call complete...')
+            gemini_res = response.text
             break
-        except Exception as e:
-            print(e)
-            if type(e).__name__ == 'RateLimitError':
+        
+        except errors.APIError as e:
+            print(f"API Error ({e.code}): {e.message}")
+            
+            if e.code in [429, 503]:
                 time.sleep(10)
-            elif type(e).__name__ == 'APIError':
-                time.sleep(15)
-            elif type(e).__name__ == 'InvalidRequestError':
+            elif e.code == 400:
+                print("Fatal Invalid Request")
                 exit(0)
             else:
                 time.sleep(10)
-    gemini_res = response.text
-    print_message = messages[1]
-    for idx in range(len(print_message['content'])):
-        if print_message['content'][idx]['type'] == 'image_url':
-            print_message['content'][idx]['image_url'] = {"url": "data:image/png;base64, b64_img"}
 
-    # print_message[1]['content'][1]['image_url'] = {"url": "data:image/png;base64, b64_img"}
-    print(print_message)
-    print(gemini_res)
+        except Exception as e:
+            print(f"Unknown Error: {e}")
+            time.sleep(10)
+    # print_message = messages[1]
+    # for idx in range(len(print_message['content'])):
+    #     if print_message['content'][idx]['type'] == 'image_url':
+    #         print_message['content'][idx]['image_url'] = {"url": "data:image/png;base64, b64_img"}
+
+    # print(print_message)
+    # print(gemini_res)
 
     auto_eval_res = 0 if 'NOT SUCCESS' in gemini_res else 1
     if 'SUCCESS' not in gemini_res:
@@ -155,7 +163,7 @@ def main():
     parser.add_argument("--max_attached_imgs", type=int, default=1)
     args = parser.parse_args()
 
-    client = genai.GenerativeModel(model_name=args.api_model, api_key=args.api_key)
+    client = genai.Client(api_key=args.api_key)
     webs = ['Allrecipes', 'Amazon', 'Apple', 'ArXiv', 'BBC News', 'Booking', 'Cambridge Dictionary',
             'Coursera', 'ESPN', 'GitHub', 'Google Flights', 'Google Map', 'Google Search', 'Huggingface', 'Wolfram Alpha']
 
@@ -164,7 +172,7 @@ def main():
         for idx in range(0, 46):
             file_dir = os.path.join(args.process_dir, 'task'+web+'--'+str(idx))
             if os.path.exists(file_dir):
-                response = auto_eval_by_gemini(file_dir, client, args.api_model, args.max_attached_imgs)
+                response = auto_eval_by_gemini(process_dir=file_dir, client=client, img_num=args.max_attached_imgs, api_model=args.api_model)
                 web_task_res.append(response)
             else:
                 pass
