@@ -7,14 +7,14 @@ import sympy
 
 from transformers import AutoModel, AutoTokenizer
 from sklearn.metrics.pairwise import cosine_similarity
-from dotenv import load_dotenv
 # from openai import OpenAI
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from prompts import CODE_SIMILARITY
 
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+# genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
-def eval_code(code1, code2, task, query_info, normalize = True, method="llm-as-a-judge"):
+def eval_code(code1, code2, task, query_info, client:genai.Client, normalize = True, method="llm-as-a-judge"):
     
     if normalize:
         code1 = normalize_code(code1)
@@ -27,23 +27,21 @@ def eval_code(code1, code2, task, query_info, normalize = True, method="llm-as-a
         else:
             action = "answering"
             query = query_info["question"]
-        return eval_code_llm(code1, code2, query, action)
+        return eval_code_llm(code1, code2, query, action, client)
     elif method == "embedding":
         return eval_code_embedding(code1, code2)
 
-def eval_code_llm(code1, code2, query, action):
-    messages = [
-        {
-            "role": "user",
-            "parts": [{"text": CODE_SIMILARITY.format(query=query, code1=code1, code2=code2, action=action)}]
-        }
-    ]
-    load_dotenv()
-    # openai_api_key = os.getenv('OPENAI_API_KEY')
-    # openai_org = os.getenv('OPENAI_ORG')
-    gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+def eval_code_llm(code1, code2, query, action, client:genai.Client):
+    messages = types.Content(
+        role="user",
+        parts=[
+            types.Part.from_text(CODE_SIMILARITY.format(query=query, code1=code1, code2=code2, action=action))
+        ]
+    )
 
-    response = gemini_model.generate_content(contents=messages).text
+    response = client.models.generate_content(model="gemini-2.5-flash",
+                                              contents=messages,
+                                              config=types.GenerateContentConfig(temperature=0.0)).text
 
     return float(response)
 

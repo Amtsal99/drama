@@ -1,14 +1,15 @@
 import os
 import numpy as np
 # from openai import OpenAI
-import google.generativeai as genai
+from google.genai import types
+from google import genai
 from prompts import DATA_SIMILARITY, SEPARATE_COLUMNS
 from dotenv import load_dotenv
 from sklearn.metrics.pairwise import cosine_similarity
 
-genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+# genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
 
-def eval_data(df1, df2, task, query_info, column_match = True, method="llm-as-a-judge"):
+def eval_data(df1, df2, task, query_info, client:genai.Client, column_match = True, method="llm-as-a-judge"):
 
     if method == "llm-as-a-judge":
         if task == "verification":
@@ -19,9 +20,9 @@ def eval_data(df1, df2, task, query_info, column_match = True, method="llm-as-a-
             query = query_info["question"]
         
         if column_match:
-            return eval_data_llm_column_match(df1, df2, query, action)
+            return eval_data_llm_column_match(df1, df2, query, action, client)
         else:
-            return eval_data_llm(df1, df2, query, action)
+            return eval_data_llm(df1, df2, query, action, client)
         
     elif method == "embedding":
         if column_match:
@@ -29,37 +30,31 @@ def eval_data(df1, df2, task, query_info, column_match = True, method="llm-as-a-
         else:
             return eval_data_embedding(df1, df2)
 
-def eval_data_llm(df1, df2, query, action):
-    messages = [
-        {
-            "role": "user",
-            "parts": [{"text": DATA_SIMILARITY.format(query=query, df1_head=df1.head(), df2_head=df2.head(), action=action)}]
-        }
-    ]
-    load_dotenv()
-    # openai_api_key = os.getenv('OPENAI_API_KEY')
-    # openai_org = os.getenv('OPENAI_ORG')
-    # client = OpenAI(api_key=openai_api_key, organization=openai_org)
-    gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+def eval_data_llm(df1, df2, query, action, client:genai.Client):
+    messages = types.Content(
+        role="user",
+        parts=[
+            types.Part.from_text(DATA_SIMILARITY.format(query=query, df1_head=df1.head(), df2_head=df2.head(), action=action))
+        ]
+    )
     
-    response = gemini_model.generate_content(contents=messages).text
+    response = client.models.generate_content(model="gemini-2.5-flash",
+                                              contents=messages,
+                                              config=types.GenerateContentConfig(temperature=0.0)).text
 
     return float(response)
 
-def eval_data_llm_column_match(df1, df2, query, action):
-    messages = [
-        {
-            "role": "user",
-            "parts": [{"text": SEPARATE_COLUMNS.format(query=query, df1_head=df1.head(), df2_head=df2.head(), action=action)}]
-        }
-    ]
-    # openai_api_key = os.getenv('OPENAI_API_KEY')
-    # openai_org = os.getenv('OPENAI_ORG')
-    # client = OpenAI(api_key=openai_api_key, organization=openai_org)
+def eval_data_llm_column_match(df1, df2, query, action, client:genai.Client):
+    messages = types.Content(
+        role="user",
+        parts=[
+            types.Part.from_text(SEPARATE_COLUMNS.format(query=query, df1_head=df1.head(), df2_head=df2.head(), action=action))
+        ]
+    )
     
-    gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-    
-    response = gemini_model.generate_content(contents=messages).text
+    response = client.models.generate_content(model="gemini-2.5-flash",
+                                              contents=messages,
+                                              config=types.GenerateContentConfig(temperature=0.0)).text
 
     return float(response)
 
