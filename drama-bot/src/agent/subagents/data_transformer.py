@@ -65,8 +65,6 @@ class DataTransformer:
 
         prompt = RETRIEVER_JOIN_TABLE_TASK_DESC.format(action=action, query=query, df1_columns=df1.columns, df1_head=df1.head(), df2_columns=df2.columns, df2_head=df2.head(), missing_info=missing_info)
 
-        time.sleep(12)  # to avoid reaching rate limit for free tier API
-        
         # gemini_model = configure_gemini_model(self.api_model, system_prompt="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.")
         gen_config = types.GenerateContentConfig(
             system_instruction="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.",
@@ -210,10 +208,6 @@ class DataTransformer:
 
         prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content, checked_files=checked_files)
         
-        # gemini_model = configure_gemini_model(self.api_model)
-        
-        time.sleep(12)  # to avoid reaching rate limit for free tier API
-        
         response = self.client.models.generate_content(
             contents=[
                 {
@@ -288,7 +282,6 @@ class DataTransformer:
                 response = self.client.models.generate_content(
                     contents=content,
                     config=types.GenerateContentConfig(max_output_tokens=4096, 
-                                                  temperature=0.0,
                                                   http_options=types.HttpOptions(timeout=600)
                                                   ),
                 )

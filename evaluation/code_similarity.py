@@ -40,8 +40,7 @@ def eval_code_llm(code1, code2, query, action, client:genai.Client):
     )
 
     response = client.models.generate_content(model="gemini-2.5-flash",
-                                              contents=messages,
-                                              config=types.GenerateContentConfig(temperature=0.0)).text
+                                              contents=messages).text
 
     return float(response)
 

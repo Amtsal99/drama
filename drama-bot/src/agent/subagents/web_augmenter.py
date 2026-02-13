@@ -29,7 +29,6 @@ class WebAugmenter:
                 # tools=[{'google_search': {}}], 
                 config=types.GenerateContentConfig(
                     tools = [types.Tool(google_search=types.GoogleSearch()), ],
-                    temperature=0.0,
                     response_modalities=["TEXT"]
                 ),
                 

@@ -39,8 +39,7 @@ def eval_data_llm(df1, df2, query, action, client:genai.Client):
     )
     
     response = client.models.generate_content(model="gemini-2.5-flash",
-                                              contents=messages,
-                                              config=types.GenerateContentConfig(temperature=0.0)).text
+                                              contents=messages).text
 
     return float(response)
 
@@ -53,8 +52,7 @@ def eval_data_llm_column_match(df1, df2, query, action, client:genai.Client):
     )
     
     response = client.models.generate_content(model="gemini-2.5-flash",
-                                              contents=messages,
-                                              config=types.GenerateContentConfig(temperature=0.0)).text
+                                              contents=messages).text
 
     return float(response)
 
