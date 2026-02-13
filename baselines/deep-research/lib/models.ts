@@ -6,6 +6,7 @@ import {
   geminiModel,
   geminiFlashModel,
 } from './gemini'
+import { GenerateContentResponse } from '@google/genai'
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
@@ -28,7 +29,7 @@ type DeepSeekMessage = {
 export async function generateWithGemini(
   systemPrompt: string,
   model: string
-): Promise<string> {
+): Promise<GenerateContentResponse> {
   let result
   if (model === 'gemini-flash-thinking') {
     result = await geminiFlashThinkingModel(systemPrompt)
@@ -37,11 +38,11 @@ export async function generateWithGemini(
   } else {
     result = await geminiFlashModel(systemPrompt)
   }
-  const text = result.text
-  if (!text) {
-    throw new Error('No response content from Gemini')
-  }
-  return text
+  // const text = result.text
+  // if (!text) {
+  //   throw new Error('No response content from Gemini')
+  // }
+  return result
 }
 
 export async function generateWithOpenAI(
@@ -192,22 +193,22 @@ export async function generateWithOpenRouter(
 export async function generateWithModel(
   systemPrompt: string,
   platformModel: string
-): Promise<string> {
+): Promise<GenerateContentResponse> {
   const [platform, model] = platformModel.split('__')
 
   switch (platform) {
     case 'google':
       return generateWithGemini(systemPrompt, model)
-    case 'openai':
-      return generateWithOpenAI(systemPrompt, model)
-    case 'deepseek':
-      return generateWithDeepSeek(systemPrompt, model)
-    case 'anthropic':
-      return generateWithAnthropic(systemPrompt, model)
-    case 'ollama':
-      return generateWithOllama(systemPrompt, model)
-    case 'openrouter':
-      return generateWithOpenRouter(systemPrompt, model)
+    // case 'openai':
+    //   return generateWithOpenAI(systemPrompt, model)
+    // case 'deepseek':
+    //   return generateWithDeepSeek(systemPrompt, model)
+    // case 'anthropic':
+    //   return generateWithAnthropic(systemPrompt, model)
+    // case 'ollama':
+    //   return generateWithOllama(systemPrompt, model)
+    // case 'openrouter':
+    //   return generateWithOpenRouter(systemPrompt, model)
     default:
       throw new Error('Invalid platform specified')
   }

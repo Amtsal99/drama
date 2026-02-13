@@ -11,17 +11,17 @@ if [[ -z "$TASK" ]]; then
 fi
 
 # Activate the virtual environment
-source .venv/Scripts/activate
+# source .venv/Scripts/activate
 
 # Install dependencies
-uv pip install -r requirements.txt
+# uv pip install -r requirements.txt
 
 # Run the task
 python -u main.py \
   --test_file "../../drama-bench/$TASK/query.json" \
   --test_task "$TASK" \
   --output_dir "results/$TASK" \
-  --max_workers 10
+  --max_workers 5
 
 # Deactivate the virtual environment
-deactivate
+# deactivate
