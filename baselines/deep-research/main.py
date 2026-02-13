@@ -12,12 +12,12 @@ from concurrent.futures import ThreadPoolExecutor
 
 BASE_URL = "http://localhost:3000"
 
-def wait_for_report_or_error(driver, timeout=120):
+def wait_for_report_or_error(driver:webdriver.Chrome, timeout=120):
     wait = WebDriverWait(driver, timeout)
 
-    def check(driver):
+    def check(driver:webdriver.Chrome):
         try:
-            error_elem = driver.find_elements(By.XPATH, "//div[normalize-space()='Agent Error']")
+            error_elem = driver.find_element(By.XPATH, "//div[normalize-space()='Agent Error']")
             if error_elem:
                 return "error"
 
@@ -74,7 +74,7 @@ def run_single_task(item, isQa, directory):
     chrome_options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     )
-    driver = webdriver.Chrome(
+    driver:webdriver.Chrome = webdriver.Chrome(
         options=chrome_options,
     )
     driver.set_page_load_timeout(20)
@@ -151,12 +151,6 @@ def run_deep_research(input_data, directory, isQa, max_workers):
             future = executor.submit(run_single_task, item, isQa, directory)
             futures.append(future)
     
-    #wipe directory if needed
-    # with os.scandir("../output") as entries:
-    #     for entry in entries:
-    #         if entry.is_file() and entry.name != "cost.json":
-    #             os.unlink(entry.path)
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--test_file', type=str, default='input/qa.json')

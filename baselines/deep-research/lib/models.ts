@@ -31,13 +31,13 @@ export async function generateWithGemini(
 ): Promise<string> {
   let result
   if (model === 'gemini-flash-thinking') {
-    result = await geminiFlashThinkingModel.generateContent(systemPrompt)
+    result = await geminiFlashThinkingModel(systemPrompt)
   } else if (model === 'gemini-exp') {
-    result = await geminiModel.generateContent(systemPrompt)
+    result = await geminiModel(systemPrompt)
   } else {
-    result = await geminiFlashModel.generateContent(systemPrompt)
+    result = await geminiFlashModel(systemPrompt)
   }
-  const text = result.response.text()
+  const text = result.text
   if (!text) {
     throw new Error('No response content from Gemini')
   }
