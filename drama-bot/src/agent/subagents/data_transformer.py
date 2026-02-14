@@ -13,10 +13,12 @@ import pytesseract
 import logging
 
 from agent.prompts import RETRIEVER_FILE_SELECTION_TASK_DESC, RETRIEVER_JOIN_TABLE_TASK_DESC, RETRIEVER_PDF_TASK_DESC, RETRIEVER_PLAN_TASK_DESC
-from agent.utils import COST_DICT
+from agent.utils import calculate_gpt_cost, calculate_gpt_cost_with_tokens
+
+from openai import OpenAI
 
 class DataTransformer:
-    def __init__(self, task, api_key, api_model, org, output_path, client):
+    def __init__(self, task, api_key, api_model, org, output_path, client:OpenAI):
         self.task = task
         self.client = client
         self.api_model = api_model
@@ -44,6 +46,9 @@ class DataTransformer:
             elif file.endswith(".xlsx") or file.endswith(".xlsx"):
                 self.excel_converter(query, file, res2)
             self.checked_files.append(file)
+            
+        res1, res2 = self.check_enough_info(query)
+        return res1, res2
     
     def jointables(self, query, df1, df2, missing_info):
         if self.task == "verification":
@@ -61,7 +66,8 @@ class DataTransformer:
             ]
         )
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gpt_cost(response=response, model_name=self.api_model)
+        
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
@@ -115,7 +121,8 @@ class DataTransformer:
             res1 = ls[0]
             res2 = ls[1]
 
-            cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+            cost = calculate_gpt_cost(response=response, model_name=self.api_model)
+            
             output_file = os.path.join(self.output_path, "output.json")
             with open(output_file, "r") as f:
                 data = json.load(f)
@@ -182,7 +189,7 @@ class DataTransformer:
         else:
             action = "answer"
 
-        prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content)
+        prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content, checked_files=self.checked_files)
 
         response = self.client.chat.completions.create(
             model=self.api_model,
@@ -195,7 +202,8 @@ class DataTransformer:
 
         logging.info(f"Selected file: {filename}")
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gpt_cost(response=response, model_name=self.api_model)
+        
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
@@ -238,7 +246,7 @@ class DataTransformer:
             base64_image = encode_image(image)
 
             payload = {
-                "model": "gpt-4o",
+                "model": "gpt-4o-mini",
                 "messages": [
                 {
                     "role": "user",
@@ -264,7 +272,7 @@ class DataTransformer:
 
             respond = response_json['choices'][0]['message']['content']
             trace += "\n" + respond
-            cost += response_json["usage"]["prompt_tokens"] * COST_DICT["gpt-4o-2024-08-06"]["cost_per_input_token"] + response_json["usage"]["completion_tokens"] * COST_DICT["gpt-4o-2024-08-06"]["cost_per_output_token"]
+            cost += calculate_gpt_cost(response=response, model_name="gpt-4o-mini")
 
             if respond[-1] == "#":
                 break

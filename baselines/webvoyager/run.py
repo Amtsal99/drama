@@ -21,6 +21,9 @@ from utils import get_web_element_rect, encode_image, extract_information, print
 
 BANNED_DOMAINS = ["x.com", "twitter.com", "politifact.com", "factcheck.org", "reuters.com", "instagram.com", "facebook.com", "guardian.com", "usafacts.org"]
 
+COST_PER_PROMPT_TOKEN = 1.5e-07
+COST_PER_COMPLETION_TOKEN = 6e-07
+
 def setup_logger(folder_path):
     log_file_path = os.path.join(folder_path, 'agent.log')
 
@@ -122,7 +125,7 @@ def format_msg_text_only(it, init_msg, pdf_obs, warn_obs, ac_tree):
         return curr_msg
 
 
-def call_gpt4v_api(args, openai_client, messages):
+def call_gpt4v_api(args, openai_client:OpenAI, messages):
     retry_times = 0
     while True:
         try:
@@ -240,7 +243,7 @@ def exec_action_scroll(info, web_eles, driver_task, args, obs_info):
             actions.key_down(Keys.ALT).send_keys(Keys.ARROW_UP).key_up(Keys.ALT).perform()
     time.sleep(3)
 
-def run_single_task(task, args, client, result_dir, options):
+def run_single_task(task, args, client:OpenAI, result_dir, options):
     visited_urls = []
     gpt_query_prompt = plan_search_term(task['ques'], args.test_task)
     openai_response = client.chat.completions.create(
@@ -445,7 +448,12 @@ def run_single_task(task, args, client, result_dir, options):
                     current_download_file = [pdf_file for pdf_file in current_files if pdf_file not in download_files and pdf_file.endswith('.pdf')]
                     if current_download_file:
                         pdf_file = current_download_file[0]
-                        pdf_obs = get_pdf_retrieval_ans_from_assistant(client, os.path.join(args.download_dir, pdf_file), searchable_query)
+                        pdf_obs, temp_token_input, temp_token_output = get_pdf_retrieval_ans_from_assistant(client, os.path.join(args.download_dir, pdf_file), searchable_query)
+                        
+                        # calculate cost for pdf retrieval
+                        accumulate_prompt_token += temp_token_input
+                        accumulate_completion_token +=temp_token_output
+                        
                         shutil.copy(os.path.join(args.download_dir, pdf_file), task_dir)
                         pdf_obs = "You downloaded a PDF file, I ask the Assistant API to answer the task based on the PDF file and get the following response: " + pdf_obs
                     download_files = current_files
@@ -504,7 +512,7 @@ def run_single_task(task, args, client, result_dir, options):
 
     print_message(messages, task_dir)
     driver_task.quit()
-    cost = accumulate_prompt_token * 2.5e-06 + accumulate_completion_token * 10e-06
+    cost = accumulate_prompt_token * COST_PER_PROMPT_TOKEN + accumulate_completion_token * COST_PER_COMPLETION_TOKEN
     logging.info(f'Total cost: {cost}')
     out_filename = f"{args.output_dir}/{task['id']}.json"
 
@@ -521,7 +529,7 @@ def main():
     parser.add_argument('--test_task', type=str, default='standard')
     parser.add_argument('--max_iter', type=int, default=5)
     parser.add_argument("--api_key", default="key", type=str, help="YOUR_OPENAI_API_KEY")
-    parser.add_argument("--api_model", default="gpt-4-vision-preview", type=str, help="api model name")
+    parser.add_argument("--api_model", default="gpt-4o-mini-2024-07-18", type=str, help="api model name")
     parser.add_argument("--output_dir", type=str, default='results')
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--max_attached_imgs", type=int, default=1)

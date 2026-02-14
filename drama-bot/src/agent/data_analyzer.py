@@ -1,5 +1,5 @@
 from agent.prompts import ANALYZER_CODE_GEN_VERIFICATION_TASK_DESC, ANALYZER_CODE_GEN_QA_TASK_DESC
-from agent.utils import COST_DICT
+from agent.utils import calculate_gpt_cost
 
 import os
 import pandas as pd
@@ -52,7 +52,7 @@ class DataAnalyzer:
         pandas_code = response.choices[0].message.content.strip()
         pandas_code = re.sub(r'```python\n|```', '', pandas_code)
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gpt_cost(response=response, model_name=self.api_model)
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)

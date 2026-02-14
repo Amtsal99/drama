@@ -26,7 +26,7 @@ nohup python -u run.py \
   --test_task "$TASK" \
   --api_key "$OPENAI_API_KEY" \
   --headless \
-  --api_model "gpt-4o-2024-11-20" \
+  --api_model "gpt-4o-mini-2024-07-18" \
   --max_iter 15 \
   --max_attached_imgs 3 \
   --temperature 1 \

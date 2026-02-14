@@ -1,5 +1,5 @@
 #### General Utils
-
+from openai import types 
 BLACKLIST = ["x.com", "twitter.com", "politifact.com", "factcheck.org", "reuters.com", "instagram.com", "facebook.com", "guardian.com", "usafacts.org", "threads.net"]
 
 COST_DICT = {
@@ -63,6 +63,16 @@ COST_DICT = {
         "cost_per_input_token": 1.5e-07,
         "cost_per_output_token": 6e-07,
     },
+    "gpt-4o-mini": {
+        "max_context": 128_000,
+        "cost_per_input_token": 1.5e-07,
+        "cost_per_output_token": 6e-07,
+    },
+    "gpt-4o-mini-search-preview": {
+        "max_context": 128_000,
+        "cost_per_input_token": 1.5e-07,
+        "cost_per_output_token": 6e-07,
+    },
     "gpt-4o-search-preview": {
         "max_context": 128_000,
         "cost_per_input_token": 2.5e-06,
@@ -70,3 +80,14 @@ COST_DICT = {
     },
 }
 
+def calculate_gpt_cost(response: types.Completion, model_name: str = "gpt-4o-mini"):
+    return (response.usage.prompt_tokens * COST_DICT[model_name]["cost_per_input_token"]) + (response.usage.completion_tokens * COST_DICT[model_name]["cost_per_output_token"])
+
+def calculate_gpt_cost_with_tokens(input_tokens, output_tokens, model_name: str = "gpt-4o-mini"):
+    return (input_tokens * COST_DICT[model_name]["cost_per_input_token"]) + (output_tokens * COST_DICT[model_name]["cost_per_output_token"])
+
+def get_input_tokens(response: types.Completion):
+    return response.usage.prompt_tokens
+
+def get_output_tokens(response: types.Completion):
+    return response.usage.completion_tokens

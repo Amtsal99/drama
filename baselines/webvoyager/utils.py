@@ -8,7 +8,11 @@ import numpy as np
 from PIL import Image
 from utils_webarena import fetch_browser_info, fetch_page_accessibility_tree,\
                     parse_accessibility_tree, clean_accesibility_tree
+                    
+from openai import OpenAI
 
+COST_PER_PROMPT_TOKEN = 1.5e-07
+COST_PER_COMPLETION_TOKEN = 6e-07
 
 def resize_image(image_path):
     image = Image.open(image_path)
@@ -439,28 +443,28 @@ def compare_images(img1_path, img2_path):
     return total_difference
 
 
-def get_pdf_retrieval_ans_from_assistant(client, pdf_path, task):
+def get_pdf_retrieval_ans_from_assistant(client:OpenAI, pdf_path, task, api_model:str = "gpt-4o-mini-2024-07-18") :
     # print("You download a PDF file that will be retrieved using the Assistant API.")
-    logging.info("You download a PDF file that will be retrieved using the Assistant API.")
+    logging.info("1. Uploading PDF file...")
     file = client.files.create(
         file=open(pdf_path, "rb"),
         purpose='assistants'
     )
-    # print("Create assistant...")
+    
     logging.info("Create assistant...")
     assistant = client.beta.assistants.create(
-        instructions="You are a helpful assistant that can analyze the content of a PDF file and give an answer that matches the given task, or retrieve relevant content that matches the task.",
-        model="gpt-4-1106-preview",
+        model=api_model,
+        instructions="You are a helpful assistant. Use the file search tool to analyze the provided PDF content.",
         tools=[{"type": "retrieval"}],
         file_ids=[file.id]
     )
     thread = client.beta.threads.create()
-    message = client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content=task,
-        file_ids=[file.id]
-    )
+    # message = client.beta.threads.messages.create(
+    #     thread_id=thread.id,
+    #     role="user",
+    #     content=task,
+    #     file_ids=[file.id]
+    # )
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id
@@ -469,17 +473,27 @@ def get_pdf_retrieval_ans_from_assistant(client, pdf_path, task):
         # Retrieve the run status
         run_status = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
         if run_status.status == 'completed':
+            run_usage = run_status.usage
+            break
+        elif run_status.status in ['failed', 'cancelled', 'expired']:
+            logging.error(f"Run failed with status: {run_status.status}")
             break
         time.sleep(2)
     messages = client.beta.threads.messages.list(thread_id=thread.id)
     messages_text = messages.data[0].content[0].text.value
+    
+    if run_usage:
+        prompt_tokens = run_usage.prompt_tokens
+        completion_tokens = run_usage.completion_tokens
+    
     file_deletion_status = client.beta.assistants.files.delete(
         assistant_id=assistant.id,
         file_id=file.id
     )
+    
     # print(file_deletion_status)
     logging.info(file_deletion_status)
     assistant_deletion_status = client.beta.assistants.delete(assistant.id)
     # print(assistant_deletion_status)
     logging.info(assistant_deletion_status)
-    return messages_text
+    return messages_text, prompt_tokens, completion_tokens

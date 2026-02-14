@@ -7,6 +7,8 @@ import {
   geminiFlashModel,
 } from './gemini'
 
+type OpenAIResponse = { response : OpenAI.Chat.Completions.ChatCompletion}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 })
@@ -31,13 +33,13 @@ export async function generateWithGemini(
 ): Promise<string> {
   let result
   if (model === 'gemini-flash-thinking') {
-    result = await geminiFlashThinkingModel.generateContent(systemPrompt)
+    result = await geminiFlashThinkingModel(systemPrompt)
   } else if (model === 'gemini-exp') {
-    result = await geminiModel.generateContent(systemPrompt)
+    result = await geminiModel(systemPrompt)
   } else {
-    result = await geminiFlashModel.generateContent(systemPrompt)
+    result = await geminiFlashModel(systemPrompt)
   }
-  const text = result.response.text()
+  const text = result.text
   if (!text) {
     throw new Error('No response content from Gemini')
   }
@@ -47,7 +49,7 @@ export async function generateWithGemini(
 export async function generateWithOpenAI(
   systemPrompt: string,
   model: string
-): Promise<string> {
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
   const response = await openai.chat.completions.create({
     model,
     messages: [
@@ -57,11 +59,7 @@ export async function generateWithOpenAI(
       },
     ],
   })
-  const content = response.choices[0].message.content
-  if (!content) {
-    throw new Error('No response content from OpenAI')
-  }
-  return content
+  return response
 }
 
 export async function generateWithDeepSeek(
@@ -192,22 +190,22 @@ export async function generateWithOpenRouter(
 export async function generateWithModel(
   systemPrompt: string,
   platformModel: string
-): Promise<string> {
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
   const [platform, model] = platformModel.split('__')
 
   switch (platform) {
-    case 'google':
-      return generateWithGemini(systemPrompt, model)
+    // case 'google':
+    //   return generateWithGemini(systemPrompt, model)
     case 'openai':
       return generateWithOpenAI(systemPrompt, model)
-    case 'deepseek':
-      return generateWithDeepSeek(systemPrompt, model)
-    case 'anthropic':
-      return generateWithAnthropic(systemPrompt, model)
-    case 'ollama':
-      return generateWithOllama(systemPrompt, model)
-    case 'openrouter':
-      return generateWithOpenRouter(systemPrompt, model)
+    // case 'deepseek':
+    //   return generateWithDeepSeek(systemPrompt, model)
+    // case 'anthropic':
+    //   return generateWithAnthropic(systemPrompt, model)
+    // case 'ollama':
+    //   return generateWithOllama(systemPrompt, model)
+    // case 'openrouter':
+    //   return generateWithOpenRouter(systemPrompt, model)
     default:
       throw new Error('Invalid platform specified')
   }

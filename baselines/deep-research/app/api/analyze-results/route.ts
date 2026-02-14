@@ -9,6 +9,8 @@ import { Tiktoken } from "js-tiktoken/lite";
 import o200k_base from "js-tiktoken/ranks/o200k_base";
 import { addCost, getTotalCost } from '@/app/api/costTracker';
 
+const PRICE_PER_TOKEN_INPUT_GPT_4o_MINI = 0.00000015
+const PRICE_PER_TOKEN_OUTPUT_GPT_4o_MINI = 0.0000006
 
 type SearchResultInput = {
   title: string
@@ -139,17 +141,15 @@ Format your response as a JSON object with this structure:
 Focus on finding results that provide unique, high-quality information relevant to the research topic.`
 
     try {
-      const response = await generateWithModel(systemPrompt, platformModel)
-      
-      //Cost calculation
-      const encoding = new Tiktoken(o200k_base);
-      const tokens = encoding.encode(systemPrompt).length;
-      const cost = 0.0000025 * tokens;
-      console.log("Encoded token length:", tokens);
-      console.log("Analyze results cost: ", 0.0000025 * tokens);
+      const resp = await generateWithModel(systemPrompt, platformModel)
+      const token_input = resp.usage?.prompt_tokens ?? 0;
+      const token_output = resp.usage?.completion_tokens ?? 0;
+      const cost = token_input * PRICE_PER_TOKEN_INPUT_GPT_4o_MINI + token_output * PRICE_PER_TOKEN_OUTPUT_GPT_4o_MINI;
       console.log("before cost: ", getTotalCost())
-      addCost(cost)
+      addCost(cost);
       console.log("after cost: ", getTotalCost())
+
+      const response = resp.choices[0].message.content
 
       if (!response) {
         throw new Error('No response from model')

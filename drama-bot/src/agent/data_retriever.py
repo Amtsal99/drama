@@ -10,6 +10,9 @@ import re
 import pandas as pd
 import ast
 import logging
+import json
+
+from agent.utils import calculate_gpt_cost
 
 class DataRetriever:
     def __init__(self, task, api_key, api_model, org, output_path):
@@ -51,7 +54,7 @@ class DataRetriever:
 
         logging.info("🪄 Data Transformer Starts")
         try:
-            self.data_transformer.run(query) 
+            res, generated_code = self.data_transformer.run(query) 
         except:
             pass
 
@@ -59,7 +62,7 @@ class DataRetriever:
         extracted = True
         if os.path.exists(file_path):
             df = pd.read_csv(file_path)
-            if df.empty:
+            if df.empty or not res:
                 extracted = False
         else:
             extracted = False
@@ -95,13 +98,13 @@ class DataRetriever:
                 _search_path = self.web_browser.run(query, website)
 
                 logging.info("🪄 Data Transformer Starts")
-                self.data_transformer.run(query)
+                res, generated_code = self.data_transformer.run(query)
             except:
                 return search_path
             extracted = True
             if os.path.exists(file_path):
                 df = pd.read_csv(file_path)
-                if df.empty:
+                if df.empty or not res:
                     extracted = False
             else:
                 extracted = False
@@ -124,6 +127,21 @@ class DataRetriever:
                 {"role": "user", "content": RETRIEVER_WEBSITE_RANK.format(action=action, query=query, prelim_response=augment_data_res)}
             ]
         )
+        
+        cost = calculate_gpt_cost(response=response, model_name=self.api_model)
+        
+        response_content = "Rank Website: " + response.choices[0].message.content
+        
+        output_file = os.path.join(self.output_path, "output.json")
+        with open(output_file, "r") as f:
+            data = json.load(f)
+        data["trace"].append(response_content)
+        if len(data["cost"]) == 0:
+            data["cost"].append(cost) 
+        else:
+            data["cost"].append(cost + data["cost"][-1])
+        with open(output_file, "w") as f:
+            json.dump(data, f, indent=2)
 
         split_parts = response.choices[0].message.content.split("#", 1)
         response_content = split_parts[0].strip()

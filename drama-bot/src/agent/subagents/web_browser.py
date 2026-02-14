@@ -21,12 +21,12 @@ from openai import OpenAI
 from .utils_webbrowser import get_web_element_rect, encode_image, extract_information, get_webarena_accessibility_tree, clip_message_and_obs
 
 from agent.prompts import RETRIEVER_FIND_WEBSITE_TASK_DESC, RETRIEVER_SEARCH_TERM_DESC, RETRIEVER_BROWSE_SYSTEM_PROMPT
-from agent.utils import BLACKLIST, COST_DICT
+from agent.utils import BLACKLIST, calculate_gpt_cost, calculate_gpt_cost_with_tokens
 
 class WebBrowser:
     def __init__(self, api_key, api_model, org, output_dir, task):
         self.client = OpenAI(api_key=api_key, organization=org)
-        self.max_iter = 1
+        self.max_iter = 10
         self.api_model = api_model
         self.output_dir = output_dir
         self.window_width = 1024
@@ -34,6 +34,7 @@ class WebBrowser:
         self.max_attached_imgs = 3
         self.fix_box_color = True
         self.seed = 42
+        self.number_of_downloaded_files = len(os.listdir(self.output_dir))
 
         # for driver_config
         self.save_accessibility_tree = False
@@ -126,7 +127,7 @@ class WebBrowser:
             messages=messages,
         )
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gpt_cost(response=response, model_name=self.api_model)
 
         logging.info(f"Search Term: {response.choices[0].message.content}")
 
@@ -368,7 +369,8 @@ class WebBrowser:
             fail_obs = ""
         driver_task.quit()
 
-        cost = accumulate_prompt_token * COST_DICT[self.api_model]["cost_per_input_token"] + accumulate_completion_token * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gpt_cost_with_tokens(accumulate_prompt_token, accumulate_completion_token, model_name=self.api_model)
+        
         output_file = os.path.join(self.output_dir, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
@@ -463,7 +465,7 @@ def format_msg_text_only(it, init_msg, pdf_obs, warn_obs, ac_tree):
         return curr_msg
 
 
-def call_gpt4v_api(openai_client, messages, api_model, seed):
+def call_gpt4v_api(openai_client:OpenAI, messages, api_model, seed):
     retry_times = 0
     while True:
         try:

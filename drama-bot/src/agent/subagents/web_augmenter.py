@@ -1,11 +1,14 @@
 from agent.prompts import RETRIEVER_WEBSEARCH_VERIFICATION, RETRIEVER_WEBSEARCH_QA
 from agent.utils import COST_DICT
 
+from openai import OpenAI
 import os
 import json
 
+from agent.utils import calculate_gpt_cost
+
 class WebAugmenter:
-    def __init__(self, task, client, output_path):
+    def __init__(self, task, client:OpenAI, output_path):
         self.task = task
         self.client = client
         self.output_path = output_path
@@ -18,7 +21,7 @@ class WebAugmenter:
             prompt = RETRIEVER_WEBSEARCH_QA.format(query=query)
 
         completion = self.client.chat.completions.create(
-            model="gpt-4o-search-preview",
+            model="gpt-4o-mini-search-preview",
             messages=[
                 {
                     "role": "user",
@@ -27,7 +30,9 @@ class WebAugmenter:
             ],
         )
         trace = "Annotations:\n" + str(completion.choices[0].message.annotations) + "\n\nMessage Content:\n" + completion.choices[0].message.content
-        cost = completion.usage.prompt_tokens * COST_DICT["gpt-4o-search-preview"]["cost_per_input_token"] + completion.usage.completion_tokens * COST_DICT["gpt-4o-search-preview"]["cost_per_output_token"]
+        
+        cost = calculate_gpt_cost(response=completion, model_name="gpt-4o-mini-search-preview")
+        
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)

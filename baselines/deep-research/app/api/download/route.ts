@@ -54,8 +54,10 @@ ${section.content}
 
     console.log(`Generated ${format} content, size:`, content.length)
     headers.set('Content-Disposition', `attachment; filename=report.${format}`)
+    
+    const body1 = typeof content === "string"? content : new Uint8Array(content)
 
-    return new Response(content, {
+    return new Response(body1, {
       headers,
       status: 200,
     })

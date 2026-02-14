@@ -51,18 +51,22 @@ export const CONFIG = {
     openai: {
       enabled: true,
       models: {
-        'gpt-4o-2024-11-20': {
+        'gpt-4o-mini-2024-07-18': {
           enabled: true,
-          label: 'GPT-4o',
-        },
-        'o1-mini': {
-          enabled: true,
-          label: 'o1-mini',
-        },
-        o1: {
-          enabled: true,
-          label: 'o1',
-        },
+          label: 'GPT-4o-mini'
+        }
+        // 'gpt-4o-2024-11-20': {
+        //   enabled: true,
+        //   label: 'GPT-4o',
+        // },
+        // 'o1-mini': {
+        //   enabled: true,
+        //   label: 'o1-mini',
+        // },
+        // o1: {
+        //   enabled: true,
+        //   label: 'o1',
+        // },
       },
     },
     anthropic: {
