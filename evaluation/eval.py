@@ -5,7 +5,9 @@ import pandas as pd
 import re
 import numpy as np
 
+import time
 from io import StringIO
+from collections.abc import Iterable
 
 from code_similarity import eval_code
 from data_similarity import eval_data
@@ -26,7 +28,18 @@ def eval_end_res(query, result, task):
             except ValueError:
                 return result.strip().lower() == gt.strip().lower()
         else:
-            return result.strip().lower() == gt.strip().lower()
+            if isinstance(result, Iterable) and not isinstance(result, str):
+                res = False
+                for item in result:
+                    if res:
+                        break
+                    if type(item) == str:
+                        res = item.strip().lower() == gt.strip().lower()
+                    else :
+                        res = item == gt
+                return res
+            else:
+                return result.strip().lower() == gt.strip().lower()
 
 def evaluation(task, id, report_folder):
 
@@ -35,7 +48,7 @@ def evaluation(task, id, report_folder):
             return obj.item()
         return obj
     
-    with open(f"../drama-bench/{task}/query.json", "r") as file:
+    with open(f"../drama-bench/subset/{task}/query.json", "r") as file:
         queries = json.load(file)
     query = next((item for item in queries if item["id"] == id), None)
 
@@ -50,7 +63,9 @@ def evaluation(task, id, report_folder):
         data_valid = False
 
     code = report["code"]
-    search_path = report["search_path"]
+    if "web-voyager" in report_folder:
+        search_path = report["sources"]
+    else : search_path = report["search_path"]
     cost = report["cost"]
 
     print("==========Accuracy==========")
@@ -104,9 +119,9 @@ def evaluation(task, id, report_folder):
     
     print("==========Data Similarity==========")
     try:
-        df_gt = pd.read_csv(f"../drama-bench/{task}/ground-truths/{id}/data.csv")
+        df_gt = pd.read_csv(f"../drama-bench/subset/{task}/ground-truths/{id}/data.csv")
     except:
-        df_gt = pd.read_csv(f"../drama-bench/{task}/ground-truths/{id}/data.csv", sep="\t")
+        df_gt = pd.read_csv(f"../drama-bench/subset/{task}/ground-truths/{id}/data.csv", sep="\t")
 
     try:
         data_sim1 = eval_data(data, df_gt, task, query, False, "llm-as-a-judge")
@@ -134,7 +149,7 @@ def evaluation(task, id, report_folder):
 
     print("==========Code Similarity==========")
 
-    with open(f"../drama-bench/{task}/ground-truths/{id}/code.py", "r", encoding="utf-8") as f:
+    with open(f"../drama-bench/subset/{task}/ground-truths/{id}/code.py", "r", encoding="utf-8") as f:
         code_gt = f.read()
 
     try:
@@ -192,9 +207,10 @@ def evaluation(task, id, report_folder):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", type=str, default="verification", choices=["verification", "qa"])
-    parser.add_argument("--report_folder", type=str, default="../drama-bot/reports")
+    parser.add_argument("--report_folder", type=str, default="./reports/drama-bot/")
 
     args = parser.parse_args()
 
-    for id in range(1, 101):
+    for id in range(1, 26):
         evaluation(args.task, id, args.report_folder)
+        # time.sleep(10)

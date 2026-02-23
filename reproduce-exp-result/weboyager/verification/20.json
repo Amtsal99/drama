@@ -1,0 +1,27 @@
+{
+    "id": 20,
+    "claim": "As of November 2024, India average cigarettes inhaled daily: 8",
+    "label": false,
+    "searched query": "India average cigarettes inhaled daily November 2024",
+    "thought": "** The screenshot shows the Independent's Asia Edition, prominently featuring a \"Cricket\" section. This suggests that the articles in this section may address various topics, including health impacts or statistics related to smoking within the context of cricket culture in India.\n\n**",
+    "result": true,
+    "data": "",
+    "code": "import pandas as pd\n\ndef validate_statement(df):\n    # Check if the average cigarette consumption aligns with health impacts discussed\n    average_cigarettes = df['average_cigarettes'].mean()\n    return average_cigarettes > 10  # Adjust according to relevant thresholds\n\ndf = pd.read_csv(\"data.csv\")  # Ensure your data file is correctly specified\nresult = validate_statement(df)",
+    "sources": [
+        "https://www.google.com/search?q=average+cigarettes+inhaled+daily+India+November+2024&sca_esv=6a3dc1d72e9664c9&source=hp&ei=h9qSad6EE_Su4-EPvrTQ6Qo&iflsig=AFdpzrgAAAAAaZLol8Jd4oXBDidAYHKsZCT78KIn80RX&ved=0ahUKEwie5Oz30N2SAxV01zgGHT4aNK0Q4dUDCCY&uact=5&oq=average+cigarettes+inhaled+daily+India+November+2024&gs_lp=Egdnd3Mtd2l6IjRhdmVyYWdlIGNpZ2FyZXR0ZXMgaW5oYWxlZCBkYWlseSBJbmRpYSBOb3ZlbWJlciAyMDI0MgUQABjvBTIFEAAY7wUyBRAAGO8FMggQABiABBiiBDIFEAAY7wVIux9QAFjXD3ADeACQAQCYAXegAcADqgEDMS4zuAEDyAEA-AEBmAIHoAKCBKgCCsICChAAGAMYjwEY6gLCAgoQLhgDGI8BGOoCwgIFECEYoAHCAgQQIRgVmAMN8QUAmDrkw3rHvJIHAzMuNKAHvxGyBwMwLjS4B-kDwgcFMi02LjHIByWACAE&sclient=gws-wiz&sei=qtqSafeoL8eNnesP2biEwAU",
+        "https://www.independent.co.uk/asia/india/delhi-air-pollution-health-risks-aqi-b2649693.html",
+        "https://www.independent.co.uk/asia",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket",
+        "https://www.independent.co.uk/sport/cricket"
+    ],
+    "cost": 0.1728498
+}

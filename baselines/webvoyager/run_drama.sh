@@ -18,7 +18,7 @@ source .venv/Scripts/activate
 uv pip install -r requirements.txt
 
 # Format input data
-python format_data.py "../../drama-bench/$TASK/query.json" "./data/$TASK.jsonl"
+python format_data.py "../../drama-bench/subset/$TASK/query.json" "./data/$TASK.jsonl"
 
 # Run the task in the background
 nohup python -u run.py \

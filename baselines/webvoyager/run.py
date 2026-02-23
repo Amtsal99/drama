@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_TEXT_ONLY, QA_PROMPT, VERIFICATION_PROMPT, QA_CODECSV_INSTRUCTIONS, VALIDATION_CODECSV_INSTRUCTIONS
 from openai import OpenAI
+from dotenv import load_dotenv
 from utils import get_web_element_rect, encode_image, extract_information, print_message,\
     get_webarena_accessibility_tree, get_pdf_retrieval_ans_from_assistant, clip_message_and_obs, clip_message_and_obs_text_only, process_output, plan_search_term
 
@@ -246,10 +247,17 @@ def exec_action_scroll(info, web_eles, driver_task, args, obs_info):
 def run_single_task(task, args, client:OpenAI, result_dir, options):
     visited_urls = []
     gpt_query_prompt = plan_search_term(task['ques'], args.test_task)
+    
     openai_response = client.chat.completions.create(
         model=args.api_model, messages=gpt_query_prompt, max_tokens=1000, seed=args.seed, timeout=30
     )
+    
+    search_plan_input_token = openai_response.usage.prompt_tokens
+    search_plan_output_token = openai_response.usage.completion_tokens
+    
     searchable_query = openai_response.choices[0].message.content
+    
+    # print("test_logggg plsplspl")
 
     if 'web' not in task:
         task['web'] = "https://google.com/"
@@ -304,6 +312,9 @@ def run_single_task(task, args, client:OpenAI, result_dir, options):
     it = 0
     accumulate_prompt_token = 0
     accumulate_completion_token = 0
+
+    accumulate_prompt_token += search_plan_input_token
+    accumulate_completion_token += search_plan_output_token
 
     while it < args.max_iter:
         logging.info(f'Iter: {it}')
@@ -379,6 +390,7 @@ def run_single_task(task, args, client:OpenAI, result_dir, options):
                 'content': QA_CODECSV_INSTRUCTIONS
             }
             messages.append(code_csv_message)
+        time.sleep(20)
         prompt_tokens, completion_tokens, gpt_call_error, openai_response = call_gpt4v_api(args, client, messages)
 
         if gpt_call_error:
@@ -528,7 +540,7 @@ def main():
     parser.add_argument('--test_file', type=str, default='data/test.json')
     parser.add_argument('--test_task', type=str, default='standard')
     parser.add_argument('--max_iter', type=int, default=5)
-    parser.add_argument("--api_key", default="key", type=str, help="YOUR_OPENAI_API_KEY")
+    # parser.add_argument("--api_key", default="key", type=str, help="YOUR_OPENAI_API_KEY")
     parser.add_argument("--api_model", default="gpt-4o-mini-2024-07-18", type=str, help="api model name")
     parser.add_argument("--output_dir", type=str, default='results')
     parser.add_argument("--seed", type=int, default=None)
@@ -547,33 +559,23 @@ def main():
 
     args = parser.parse_args()
     
-    # Create the 'raw' folder and result directory
     raw_dir = os.path.join(args.output_dir, "raw")
     os.makedirs(raw_dir, exist_ok=True)
-
-    # Wipe directory as needed
-    # with os.scandir(raw_dir) as entries:
-    #     for entry in entries:
-    #         if entry.is_file():
-    #             os.unlink(entry.path)
-    #         elif entry.is_dir():
-    #             shutil.rmtree(entry.path)
-
-    # OpenAI client
-    client = OpenAI(api_key=args.api_key)
+    
+    load_dotenv()
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     options = driver_config(args)
-
-    # Save Result file
+    
     current_time = time.strftime("%Y%m%d_%H_%M_%S", time.localtime())
 
     result_dir = os.path.join(raw_dir, current_time)
     os.makedirs(result_dir, exist_ok=True)
-    # Load tasks
+    
     tasks = []
     with open(args.test_file, 'r', encoding='utf-8') as f:
         for line in f:
             tasks.append(json.loads(line))
-
+            
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
         futures = []
         for task_id in range(len(tasks)):

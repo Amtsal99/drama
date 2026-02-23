@@ -1,0 +1,14 @@
+{
+    "id": 15,
+    "claim": "Which metro area had the highest annual median lawyer wage in 2022?",
+    "label": "San Jose-Sunnyvale-Santa Clara, CA",
+    "searched query": "highest annual median lawyer wage metro area 2022",
+    "thought": "** The search for the highest annual median lawyer wage by metro area for 2022 has returned results, including sources from the Bureau of Labor Statistics and American Bar Association. I will retrieve the answer.\n\n**",
+    "result": "",
+    "data": "",
+    "code": "",
+    "sources": [
+        "https://www.google.com/search?q=highest+annual+median+lawyer+wage+metro+area+2022&sca_esv=fcb4727fba182473&source=hp&ei=fI-SafvGB86gseMPhov3gQc&iflsig=AFdpzrgAAAAAaZKdjMS2d_G7llZeTlamRk-Q6tW-Gy4z&ved=0ahUKEwj79J6vid2SAxVOUGwGHYbFPXAQ4dUDCCY&uact=5&oq=highest+annual+median+lawyer+wage+metro+area+2022&gs_lp=Egdnd3Mtd2l6IjFoaWdoZXN0IGFubnVhbCBtZWRpYW4gbGF3eWVyIHdhZ2UgbWV0cm8gYXJlYSAyMDIyMggQABiABBiiBDIFEAAY7wUyBRAAGO8FMgUQABjvBUiuIFAAWMkQcAN4AJABAJgBdaABwwOqAQMwLjS4AQPIAQD4AQGYAgegAoUEqAIKwgIKEC4YAxjqAhiPAcICChAAGAMY6gIYjwHCAgUQIRigAcICBBAhGBWYAxHxBQPQdpQMq46hkgcDMy40oAeVE7IHAzAuNLgH4gPCBwUyLTYuMcgHKoAIAA&sclient=gws-wiz&sei=z4-SaeSmE5ruseMPqYKz4Ak"
+    ],
+    "cost": 0.020298749999999997
+}

@@ -4,8 +4,12 @@ from agent.utils import COST_DICT
 from openai import OpenAI
 import os
 import json
+import time
 
 from agent.utils import calculate_gpt_cost
+
+COST_WEB_SEARCH_PER_CALL = 0.025
+
 
 class WebAugmenter:
     def __init__(self, task, client:OpenAI, output_path):
@@ -19,6 +23,9 @@ class WebAugmenter:
             prompt = RETRIEVER_WEBSEARCH_VERIFICATION.format(query=query)
         else:
             prompt = RETRIEVER_WEBSEARCH_QA.format(query=query)
+            
+            
+        time.sleep(30)
 
         completion = self.client.chat.completions.create(
             model="gpt-4o-mini-search-preview",
@@ -31,7 +38,7 @@ class WebAugmenter:
         )
         trace = "Annotations:\n" + str(completion.choices[0].message.annotations) + "\n\nMessage Content:\n" + completion.choices[0].message.content
         
-        cost = calculate_gpt_cost(response=completion, model_name="gpt-4o-mini-search-preview")
+        cost = calculate_gpt_cost(response=completion, model_name="gpt-4o-mini-search-preview") + COST_WEB_SEARCH_PER_CALL
         
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
@@ -46,5 +53,5 @@ class WebAugmenter:
 
         search_path = []
         for citation in completion.choices[0].message.annotations:
-            search_path.append(citation["url_citation"]["url"])
+            search_path.append(citation.url_citation.url)
         return completion.choices[0].message.content, search_path

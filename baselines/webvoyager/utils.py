@@ -450,7 +450,6 @@ def get_pdf_retrieval_ans_from_assistant(client:OpenAI, pdf_path, task, api_mode
         file=open(pdf_path, "rb"),
         purpose='assistants'
     )
-    
     logging.info("Create assistant...")
     assistant = client.beta.assistants.create(
         model=api_model,
@@ -459,12 +458,12 @@ def get_pdf_retrieval_ans_from_assistant(client:OpenAI, pdf_path, task, api_mode
         file_ids=[file.id]
     )
     thread = client.beta.threads.create()
-    # message = client.beta.threads.messages.create(
-    #     thread_id=thread.id,
-    #     role="user",
-    #     content=task,
-    #     file_ids=[file.id]
-    # )
+    message = client.beta.threads.messages.create(
+        thread_id=thread.id,
+        role="user",
+        content=task,
+        file_ids=[file.id]
+    )
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
         assistant_id=assistant.id
@@ -486,8 +485,7 @@ def get_pdf_retrieval_ans_from_assistant(client:OpenAI, pdf_path, task, api_mode
         prompt_tokens = run_usage.prompt_tokens
         completion_tokens = run_usage.completion_tokens
     
-    file_deletion_status = client.beta.assistants.files.delete(
-        assistant_id=assistant.id,
+    file_deletion_status = client.files.delete(
         file_id=file.id
     )
     

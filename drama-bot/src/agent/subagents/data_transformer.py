@@ -11,20 +11,20 @@ import fnmatch
 import PyPDF2
 import pytesseract
 import logging
-
+import time
 from agent.prompts import RETRIEVER_FILE_SELECTION_TASK_DESC, RETRIEVER_JOIN_TABLE_TASK_DESC, RETRIEVER_PDF_TASK_DESC, RETRIEVER_PLAN_TASK_DESC
-from agent.utils import calculate_gpt_cost, calculate_gpt_cost_with_tokens
+from agent.utils import calculate_gpt_cost
 
 from openai import OpenAI
 
 class DataTransformer:
-    def __init__(self, task, api_key, api_model, org, output_path, client:OpenAI):
+    def __init__(self, task, api_key, api_model, output_path, client:OpenAI):
         self.task = task
         self.client = client
         self.api_model = api_model
         self.output_path = output_path
         self.api_key = api_key
-        self.org = org
+        # self.org = org
         self.checked_files = []
     
     def run(self, query):
@@ -57,7 +57,7 @@ class DataTransformer:
             action = "answer"
 
         prompt = RETRIEVER_JOIN_TABLE_TASK_DESC.format(action=action, query=query, df1_columns=df1.columns, df1_head=df1.head(), df2_columns=df2.columns, df2_head=df2.head(), missing_info=missing_info)
-
+        # time.sleep(60)
         response = self.client.chat.completions.create(
             model=self.api_model,
             messages=[
@@ -111,7 +111,7 @@ class DataTransformer:
                     "content": RETRIEVER_PLAN_TASK_DESC.format(action=action, query=query, existing_columns=existing_columns, df_head = df_head)
                 }
             ]
-
+            # time.sleep(60)
             response = self.client.chat.completions.create(
                 model=self.api_model,
                 messages=messages,
@@ -191,6 +191,7 @@ class DataTransformer:
 
         prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content, checked_files=self.checked_files)
 
+        time.sleep(35)
         response = self.client.chat.completions.create(
             model=self.api_model,
             messages=[
@@ -227,7 +228,6 @@ class DataTransformer:
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
-            "OpenAI-Organization": self.org
         }
 
         if self.task == "verification":
@@ -246,7 +246,7 @@ class DataTransformer:
             base64_image = encode_image(image)
 
             payload = {
-                "model": "gpt-4o-mini",
+                "model": "gpt-4o-mini-2024-07-18",
                 "messages": [
                 {
                     "role": "user",
@@ -266,13 +266,13 @@ class DataTransformer:
                 ],
                 "max_tokens": 4096
             }
-
+            # time.sleep(5)
             response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
             response_json = response.json()
 
             respond = response_json['choices'][0]['message']['content']
             trace += "\n" + respond
-            cost += calculate_gpt_cost(response=response, model_name="gpt-4o-mini")
+            cost += calculate_gpt_cost(response=response, model_name="gpt-4o-mini-2024-07-18")
 
             if respond[-1] == "#":
                 break
@@ -338,7 +338,7 @@ class DataTransformer:
 
                     df["sheet_name"] = sheet_name
                     df["file"] = file
-
+                    
                     if existing_df is not None:
                         existing_df = self.jointables(query, existing_df, df, missing_info)
                     else:

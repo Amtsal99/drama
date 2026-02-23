@@ -37,11 +37,11 @@ def eval_code_llm(code1, code2, query, action):
     ]
     load_dotenv()
     openai_api_key = os.getenv('OPENAI_API_KEY')
-    openai_org = os.getenv('OPENAI_ORG')
-    client = OpenAI(api_key=openai_api_key, organization=openai_org)
+    # openai_org = os.getenv('OPENAI_ORG')
+    client = OpenAI(api_key=openai_api_key)
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o-mini-2024-07-18",
         messages=messages,
     ).choices[0].message.content
 

@@ -5,3 +5,5 @@ test_code.py
 __pycache__
 .env
 .venv
+*.log*
+test_tasks_qa_stdout.log

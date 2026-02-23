@@ -1,0 +1,12 @@
+{
+  "result": "Educational and health services",
+  "data": "Industry,ImmigrantWorkers\r\nEducational and health services,5500000\r\nProfessional and business services,4700000\r\nConstruction,3300000\r\nWholesale and retail trade,3200000\r\nManufacturing,3100000\r\nLeisure and hospitality,3000000\r\n",
+  "code": "import pandas as pd\n\ndef answer_question(df):\n    \"\"\"\n    Identifies the industry that employs the most immigrant workers in the US in 2023.\n\n    Args:\n        df (pd.DataFrame): A DataFrame containing 'Industry' and 'ImmigrantWorkers' columns.\n\n    Returns:\n        str: The name of the industry with the most immigrant workers.\n    \"\"\"\n    # Ensure 'ImmigrantWorkers' column is numeric, handling potential string-to-number conversion\n    # based on the note \"When the column contains numbers but in the form of strings, you should first convert it back to numbers.\"\n    df['ImmigrantWorkers'] = pd.to_numeric(df['ImmigrantWorkers'], errors='coerce')\n\n    # Find the row with the maximum number of immigrant workers\n    max_immigrant_workers_row = df.loc[df['ImmigrantWorkers'].idxmax()]\n\n    # Extract the Industry name from that row\n    most_employing_industry = max_immigrant_workers_row['Industry']\n\n    return most_employing_industry",
+  "search_path": [
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEZ0vsuArUPjHtW6xKWIxKGSuTiXTQSTwDmA-JaI9QrrRtPuzV6TyL03yuqcY5DajrhLw-X4AWnvBWL1k3ecBiR6uRl3fWfOh2q0W3fDZfF9towjy3czqJMQPykSbEXOaxKcFxAKUQyGzOulahsKwRf7mX9gIDiGf1Dp_5N8L72dsdpcu4Wy1RtRGKGpaR_z83btFI4an8=",
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGHdObYi7fuaroWnPqITo7-FqJVE1VLuBpnlUegZd7LuHi5igBTkdFCPBbPeVchWlCC6IceuKzOssdVzzHl7pz_XbJ1-629or3vZNCAKNRY57CqswYUWXmKa8YHCb_xjQwm-bp_4ejUqlZ7iouKiOu6GNVf3gp8DkRNhGxsLB8qvkoJ_3PlCZfxH2Lo3IwpGZIM0kGlX1BSLOeuYjPx5A==",
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEq6DONaoe8frfbDmSjGfxh44dFBhjzlF-_0yRZNSOwVikZ5rKMdmppGhR9Q8LOomFgsf4kh9UUJXsNrc4c65RK5FeApkAHI-kKb-xhHT_ZDOnVe54w-zcnzwRRaLZq7YFCb6-CwF2BFfQfnRxbrTRo7VT21AfWZz4-xRenGmffqIm1aztii_r1_1hHSh87pF8NZEK0ceyp-97p-vqqbqPxLge1UTEAcBk20eBpaTewWvrhNtg=",
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGeUHAjAcIRmtgNpxeMfkKzSDKWy9mzizALVIN4y7p4amE0BInZ1zRTVbK94YGbCoN7hrGRUmrCYJ-dN0oapaqXsVK_yzaimjJ_t0MKouWHjmXc9-1eFT8kcK_PyrOiXsCCGo-rRzxrejMKpSxuk853ocSqC62AuZotYzo4Uu4-F8nU5lmovkUsWRGebg=="
+  ],
+  "cost": 0.0021557
+}

@@ -1,0 +1,12 @@
+{
+  "result": "Great Smoky Mountains National Park",
+  "data": "Park Name,Visitor Spending (USD)\r\nGreat Smoky Mountains National Park,2200000000\r\nGolden Gate National Recreation Area,1500000000\r\nBlue Ridge Parkway,1400000000\r\nGrand Canyon National Park,768000000\r\nZion National Park,676000000\r\nYellowstone National Park,623000000\r\nRocky Mountain National Park,569000000\r\n",
+  "code": "import pandas as pd\n\ndef answer_question(df):\n    \"\"\"\n    Finds the national park with the highest visitor spending.\n\n    Args:\n        df (pd.DataFrame): A DataFrame with 'Park Name' and 'Visitor Spending (USD)' columns.\n\n    Returns:\n        str: The name of the national park with the highest visitor spending.\n    \"\"\"\n    # Find the row with the maximum 'Visitor Spending (USD)'\n    max_spending_park = df.loc[df['Visitor Spending (USD)'].idxmax()]\n\n    # Extract the 'Park Name'\n    park_name = max_spending_park['Park Name']\n\n    return park_name",
+  "search_path": [
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGwA6N8tXA2nopfZa3zcoWtjHWnzxU-bP4naDweYTCf3HGfQnSLSRFtZsuiJJgTg0gK7LlTwp0hDjKEjQ2PMZD2-xDn41lA_7Np9686fkc3XrcmznXf7SxAFGo0QdSYzCp98Suns3G3Pco7ARANMANAYaHOslNoxjHwhYv5gvMVRDd106GuAMcI4yG-TBfJ4i1sXyH-M2UBIoeceRVoZm1Vglc9wrDxXAlgHeE=",
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQG72uttFLHswT-NXbv7dh7fstCYYXTyi8PqdkhlRsA1KnolpL0fEIS2VW5lb9rmH3mtqwHj5J58WkeIcH3_GEtzt-c15AUM6rOo0kllg3yvKlkpa40KbgtoUqkuq6ztLvNlOQAEl7uuITOLHYN3XZ7hgp5zJbikqd2lcelIkpIspcqfuqgLVbZmddOLo4Ex1yWKOXUS5TZku5G3IXZrxMXlVDCV",
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFrFLt0J29vWO6rFzw1q-LE4H7m6zrY7F27YRP09haCcY7a-dk0VjMA16Gr_x6uLCfwX-qwXaolQ77DS4NNt6tdaXsQUbvBH5IN1wRINP1bQVGuKyxGIQF17eTnA5zLeF3-utHDtW_VgG1J6Y8qkpr-7nbzHcnI-1Vv",
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGCYWNFJCI9N23ga7UBT-w_ZOcUpQrCZWNbyasc5H8X8PEslH2TrA_cRTEgT0nVZL3Ul9e2rU7NMgT2LgYjLjOUQpVikVfRoz6dSj750sCluZLECcnDbwhb4lVPCPd_q98py2_QsCWIUmjeCf9TsWC_PTbASCFOHskrT4cpjt4vrclo_GWBA5_8klM7KZj_s-7437VAdPgicQ=="
+  ],
+  "cost": 0.0020469
+}

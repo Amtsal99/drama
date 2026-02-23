@@ -1,0 +1,16 @@
+{
+    "id": 23,
+    "claim": "2014: China's GDP $6T, India's GDP $2T; 2023: China's GDP $20T, India's GDP $3T.",
+    "label": false,
+    "searched query": "China GDP 2014 2023 India GDP 2014 2023",
+    "thought": "The ad currently displayed does not have an actionable button appropriate to close or dismiss it. I will need to proceed to a higher layer to maximize visibility of the relevant content. Instead of closing an ad, I may need to go back to the previous page.",
+    "result": "",
+    "data": "",
+    "code": "",
+    "sources": [
+        "https://www.google.com/search?q=China+GDP+2014+2023+India+GDP+2014+2023&sca_esv=6a3dc1d72e9664c9&source=hp&ei=IOGSaYedE5Wc4-EPptGc-QI&iflsig=AFdpzrgAAAAAaZLvMLXmx0kx40apbZIBLjwMVVVk-n7I&ved=0ahUKEwiHrZ2d192SAxUVzjgGHaYoJy8Q4dUDCCY&uact=5&oq=China+GDP+2014+2023+India+GDP+2014+2023&gs_lp=Egdnd3Mtd2l6IidDaGluYSBHRFAgMjAxNCAyMDIzIEluZGlhIEdEUCAyMDE0IDIwMjMyCBAAGKIEGIkFMgUQABjvBTIIEAAYgAQYogQyBRAAGO8FSLseUABY2w5wA3gAkAEBmAF3oAGuA6oBAzEuM7gBA8gBAPgBAZgCBqAC5AKoAgrCAgoQLhgDGOoCGI8BwgIKEAAYAxjqAhiPAZgDD_EF3JFhh3hruaqSBwMzLjOgB7IJsgcDMC4zuAfGAsIHBzAuMS40LjHIByOACAA&sclient=gws-wiz&sei=QuGSaYrEGsiY4-EPu-2-gAo",
+        "https://statisticstimes.com/economy/china-vs-india-economy.php",
+        "https://statisticstimes.com/economy/china-vs-india-economy.php#google_vignette"
+    ],
+    "cost": 0.071484
+}

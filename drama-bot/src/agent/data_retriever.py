@@ -11,35 +11,40 @@ import pandas as pd
 import ast
 import logging
 import json
+import time
 
 from agent.utils import calculate_gpt_cost
 
 class DataRetriever:
-    def __init__(self, task, api_key, api_model, org, output_path):
+    def __init__(self, task, api_key, api_model, output_path):
         self.task = task
         self.output_path = output_path
         self.api_model = api_model
-        self.client = OpenAI(api_key=api_key, organization=org)
+        self.client = OpenAI(api_key=api_key)
         self.api_key = api_key
-        self.org = org
+        # self.org = org
 
         # initialization of subagents
         self.web_browser = WebBrowser(
             api_key=api_key,
             api_model=api_model,
             output_dir=self.output_path,
-            org=org,
             task=task
+            # org=org,
         )
         self.data_transformer = DataTransformer(
+            task=task,
             api_key=api_key,
             api_model=api_model,
             output_path=self.output_path,
-            org=org,
-            task=task,
+            # org=org,
             client=self.client
         )
-        self.web_augmenter = WebAugmenter(task=task, client=self.client, output_path=output_path)
+        self.web_augmenter = WebAugmenter(
+            task=task, 
+            client=self.client, 
+            output_path=output_path
+        )
 
     def run(self, query):
         search_path = []
@@ -121,6 +126,7 @@ class DataRetriever:
         else:
             action = "answer"
 
+        # time.sleep(60)
         response = self.client.chat.completions.create(
             model=self.api_model,
             messages=[

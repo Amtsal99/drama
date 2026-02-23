@@ -1,0 +1,14 @@
+{
+    "id": 5,
+    "claim": "What kind of medical care do people skip most frequently due to costs in 2023?",
+    "label": "Dental care",
+    "searched query": "medical care people skip due to costs 2023",
+    "thought": "** I cannot access the information directly from Google search due to a CAPTCHA. I will need to provide a general summary about the impacts of healthcare costs based on previous knowledge.\n\n**",
+    "result": "",
+    "data": "",
+    "code": "",
+    "sources": [
+        "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3Dmedical%2Bcare%2Bpeople%2Bskip%2Bdue%2Bto%2Bcosts%2B2023%26sca_esv%3Df755b356225138a1%26source%3Dhp%26ei%3DhoCSaZSNIZ2V4-EPqbr2yQ4%26iflsig%3DAFdpzrgAAAAAaZKOli1RN2Z3SOXSjTyjJpqoG7CwyL67%26ved%3D0ahUKEwiU6JON-9ySAxWdyjgGHSmdPekQ4dUDCCY%26uact%3D5%26oq%3Dmedical%2Bcare%2Bpeople%2Bskip%2Bdue%2Bto%2Bcosts%2B2023%26gs_lp%3DEgdnd3Mtd2l6IiptZWRpY2FsIGNhcmUgcGVvcGxlIHNraXAgZHVlIHRvIGNvc3RzIDIwMjNIpx9QAFjID3ADeACQAQGYAZkBoAGtBKoBAzAuNLgBA8gBAPgBAZgCA6ACGqgCCsICChAAGAMY6gIYjwHCAgoQLhgDGOoCGI8BmAMO8QVe1_L-Hg1WG5IHATOgB7QBsgcAuAcAwgcFMi0yLjHIBxWACAA%26sclient%3Dgws-wiz%26sei%3DqoCSaePGAcW4juMP0KbNsAs&q=EgSM1btDGKqByswGIjCMOUfw8LbTXRdB6-ZiYqurb5HnEYhN4D51fC1t0Od09XHbFmR4F4N6lKnN8NTr5TwyAVJaAUM"
+    ],
+    "cost": 0.0199335
+}

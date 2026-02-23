@@ -24,9 +24,9 @@ from agent.prompts import RETRIEVER_FIND_WEBSITE_TASK_DESC, RETRIEVER_SEARCH_TER
 from agent.utils import BLACKLIST, calculate_gpt_cost, calculate_gpt_cost_with_tokens
 
 class WebBrowser:
-    def __init__(self, api_key, api_model, org, output_dir, task):
-        self.client = OpenAI(api_key=api_key, organization=org)
-        self.max_iter = 10
+    def __init__(self, api_key, api_model, output_dir, task):
+        self.client = OpenAI(api_key=api_key)
+        self.max_iter = 5
         self.api_model = api_model
         self.output_dir = output_dir
         self.window_width = 1024
@@ -121,7 +121,7 @@ class WebBrowser:
                 "content": RETRIEVER_SEARCH_TERM_DESC.format(action=action, query=query)
             }
         ]
-
+        # time.sleep(60)
         response = self.client.chat.completions.create(
             model=self.api_model,
             messages=messages,
@@ -326,7 +326,7 @@ class WebBrowser:
                             break
 
                         if time.time() - start_time > 120:
-                            logging.info("5 minutes have passed without any change in the output directory.")
+                            logging.info("2 minutes have passed without any change in the output directory.")
                             warn_obs = "\n This is not a valid download link."
                             break
                     if downloaded:
@@ -469,6 +469,7 @@ def call_gpt4v_api(openai_client:OpenAI, messages, api_model, seed):
     retry_times = 0
     while True:
         try:
+            time.sleep(35)
             openai_response = openai_client.chat.completions.create(
                 model=api_model, messages=messages, max_tokens=1000, seed=seed
             )
@@ -496,7 +497,7 @@ def call_gpt4v_api(openai_client:OpenAI, messages, api_model, seed):
                 return None, None, gpt_call_error, None
 
         retry_times += 1
-        if retry_times == 10:
+        if retry_times == 2:
             logging.info('Retrying too many times')
             return None, None, True, None
 

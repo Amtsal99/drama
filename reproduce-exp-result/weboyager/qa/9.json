@@ -1,0 +1,14 @@
+{
+    "id": 9,
+    "claim": "What is the percentage of people with an income below $25,000 that were unbanked in 2023?",
+    "label": "23",
+    "searched query": "percentage of unbanked people with income below $25000 2023 USA",
+    "thought": "** I need to type the query in the search bar to look up the percentage of unbanked people with income below $25,000 in the USA for 2023.\n\n**",
+    "result": "",
+    "data": "",
+    "code": "",
+    "sources": [
+        "https://www.google.com/search?q=percentage+of+unbanked+people+with+income+below+%2425000+2023+USA&sca_esv=f755b356225138a1&source=hp&ei=Z4SSaZacKYizwcsPo4mluAc&iflsig=AFdpzrgAAAAAaZKSd7EPXGPb5dGIxnTtq-gre3dvk5mw&ved=0ahUKEwjW69vm_tySAxWIWXADHaNECXcQ4dUDCCY&uact=5&oq=percentage+of+unbanked+people+with+income+below+%2425000+2023+USA&gs_lp=Egdnd3Mtd2l6Ij9wZXJjZW50YWdlIG9mIHVuYmFua2VkIHBlb3BsZSB3aXRoIGluY29tZSBiZWxvdyAkMjUwMDAgMjAyMyBVU0EyChAAGAMY6gIYjwEyChAAGAMY6gIYjwEyChAAGAMY6gIYjwEyChAAGAMY6gIYjwEyChAAGAMY6gIYjwEyChAAGAMY6gIYjwEyChAuGAMY6gIYjwEyChAAGAMY6gIYjwEyChAuGAMY6gIYjwEyChAAGAMY6gIYjwFI_R9QAFidEHADeACQAQCYAVigAdECqgEBNLgBA8gBAPgBAZgCA6ACIKgCCpgDEPEF6e_iuYiq_hmSBwEzoAe0AbIHALgHAMIHBTItMi4xyAcZgAgA&sclient=gws-wiz&sei=CIWSadaPLZyI4-EPt8b6uA8"
+    ],
+    "cost": 0.09975075
+}

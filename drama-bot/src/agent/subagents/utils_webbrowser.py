@@ -80,7 +80,7 @@ def get_web_element_rect(browser, fix_color=True):
                 ,
                 area,
                 rects,
-                text: element.textContent.trim().replace(/\s{2,}/g, ' ')
+                text: element.textContent.trim().replace(/\\s{2,}/g, ' ')
                 };
             }).filter(item =>
                 item.include && (item.area >= 20)

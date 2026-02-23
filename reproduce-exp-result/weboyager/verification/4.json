@@ -1,0 +1,25 @@
+{
+    "id": 4,
+    "claim": "More than 50% of Americans can’t afford a $1,000 emergency expense of any kind.",
+    "label": false,
+    "searched query": "More than 50% of Americans can’t afford a $1,000 emergency expense",
+    "thought": "I will click the \"Read more\" link regarding the \"Constant 'Unusual traffic' messages\" to obtain further information about this issue and explore possible solutions.",
+    "result": true,
+    "data": "Percentage,Year\n58,2023",
+    "code": "import pandas as pd\n\ndef validate_statement(df):\n    return df['Percentage'].max() > 50\n\ndf = pd.read_csv(\"data.csv\")\nresult = validate_statement(df)",
+    "sources": [
+        "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3DMore%2Bthan%2B50%2525%2Bof%2BAmericans%2Bcan%25E2%2580%2599t%2Bafford%2Ba%2B%25241%252C000%2Bemergency%2Bexpense%2560%2560%2560csvPercentage%252CYear58%252C2023%2560%2560%2560%2560%2560%2560pythonimport%2Bpandas%2Bas%2Bpddef%2Bvalidate_statement%2528df%2529%253A%26sca_esv%3D6a3dc1d72e9664c9%26source%3Dhp%26ei%3DH8KSaav1CoSOnesP5962iAI%26iflsig%3DAFdpzrgAAAAAaZLQL0zwSS6JbVZnCF7a83hfQ1B-3Pz_%26ved%3D0ahUKEwjrgMHUud2SAxUER2cHHWevDSEQ4dUDCCY%26uact%3D5%26oq%3DMore%2Bthan%2B50%2525%2Bof%2BAmericans%2Bcan%25E2%2580%2599t%2Bafford%2Ba%2B%25241%252C000%2Bemergency%2Bexpense%2560%2560%2560csvPercentage%252CYear58%252C2023%2560%2560%2560%2560%2560%2560pythonimport%2Bpandas%2Bas%2Bpddef%2Bvalidate_statement%2528df%2529%253A%26gs_lp%3DEgdnd3Mtd2l6IpoBTW9yZSB0aGFuIDUwJSBvZiBBbWVyaWNhbnMgY2Fu4oCZdCBhZmZvcmQgYSAkMSwwMDAgZW1lcmdlbmN5IGV4cGVuc2VgYGBjc3ZQZXJjZW50YWdlLFllYXI1OCwyMDIzYGBgYGBgcHl0aG9uaW1wb3J0IHBhbmRhcyBhcyBwZGRlZiB2YWxpZGF0ZV9zdGF0ZW1lbnQoZGYpOkgAUABYAHAAeACQAQCYAQCgAQCqAQC4AQPIAQD4AQGYAgCgAgCYAwCSBwCgBwCyBwC4BwDCBwDIBwCACAA%26sclient%3Dgws-wiz%26sei%3DW8KSaZ_yOfXCp84PgPy8sQk&q=EgSM1btDGNyEy8wGIjBcnDsxQVfvh1rX729PW43M8CaqzIqbFiZxZ432bXcYQMOIh4FOKa4qXo_QtZij3V0yAVJaAUM",
+        "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3DMore%2Bthan%2B50%2525%2Bof%2BAmericans%2Bcan%25E2%2580%2599t%2Bafford%2Ba%2B%25241%252C000%2Bemergency%2Bexpense%2560%2560%2560csvPercentage%252CYear58%252C2023%2560%2560%2560%2560%2560%2560pythonimport%2Bpandas%2Bas%2Bpddef%2Bvalidate_statement%2528df%2529%253A%26sca_esv%3D6a3dc1d72e9664c9%26source%3Dhp%26ei%3DH8KSaav1CoSOnesP5962iAI%26iflsig%3DAFdpzrgAAAAAaZLQL0zwSS6JbVZnCF7a83hfQ1B-3Pz_%26ved%3D0ahUKEwjrgMHUud2SAxUER2cHHWevDSEQ4dUDCCY%26uact%3D5%26oq%3DMore%2Bthan%2B50%2525%2Bof%2BAmericans%2Bcan%25E2%2580%2599t%2Bafford%2Ba%2B%25241%252C000%2Bemergency%2Bexpense%2560%2560%2560csvPercentage%252CYear58%252C2023%2560%2560%2560%2560%2560%2560pythonimport%2Bpandas%2Bas%2Bpddef%2Bvalidate_statement%2528df%2529%253A%26gs_lp%3DEgdnd3Mtd2l6IpoBTW9yZSB0aGFuIDUwJSBvZiBBbWVyaWNhbnMgY2Fu4oCZdCBhZmZvcmQgYSAkMSwwMDAgZW1lcmdlbmN5IGV4cGVuc2VgYGBjc3ZQZXJjZW50YWdlLFllYXI1OCwyMDIzYGBgYGBgcHl0aG9uaW1wb3J0IHBhbmRhcyBhcyBwZGRlZiB2YWxpZGF0ZV9zdGF0ZW1lbnQoZGYpOkgAUABYAHAAeACQAQCYAQCgAQCqAQC4AQPIAQD4AQGYAgCgAgCYAwCSBwCgBwCyBwC4BwDCBwDIBwCACAA%26sclient%3Dgws-wiz%26sei%3DW8KSaZ_yOfXCp84PgPy8sQk&q=EgSM1btDGNyEy8wGIjBcnDsxQVfvh1rX729PW43M8CaqzIqbFiZxZ432bXcYQMOIh4FOKa4qXo_QtZij3V0yAVJaAUM#",
+        "https://support.google.com/websearch/answer/86640",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+",
+        "https://support.google.com/websearch/search?q=I+am+receiving+unusual+traffic+detected+messages+when+trying+to+access+Google.+"
+    ],
+    "cost": 0.16163775
+}

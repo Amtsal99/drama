@@ -52,7 +52,7 @@ export type ModelVariant =
   | 'google__gemini-flash'
   | 'google__gemini-flash-thinking'
   | 'google__gemini-exp'
-  | 'gpt-4o'
+  | 'gpt-4o-mini'
   | 'o1-mini'
   | 'o1'
   | 'claude-3-7-sonnet-latest'

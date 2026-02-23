@@ -6,17 +6,35 @@ import pandas as pd
 import re
 import json
 import logging
-
+import time
 from openai import OpenAI
 
+import numpy as np
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        
+        if isinstance(obj, np.floating):
+            return float(obj)
+        
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+            
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+            
+        return super(NpEncoder, self).default(obj)
+    
 class DataAnalyzer:
-    def __init__(self, task, api_key, api_model, org, output_path):
+    def __init__(self, task, api_key, api_model, output_path):
         self.task = task
-        self.client = OpenAI(api_key=api_key, organization=org)
+        self.client = OpenAI(api_key=api_key)
         self.api_model = api_model
         self.output_path = output_path
         self.api_key = api_key
-        self.org = org
+        # self.org = org
 
     def run(self, query):
 
@@ -41,6 +59,7 @@ class DataAnalyzer:
         else:
             prompt = ANALYZER_CODE_GEN_QA_TASK_DESC.format(query=query, df_columns=df.columns, df_head=df.head())
 
+        time.sleep(60)
         response = self.client.chat.completions.create(
             model=self.api_model,
             messages=[
@@ -61,8 +80,8 @@ class DataAnalyzer:
             data["cost"].append(cost) 
         else:
             data["cost"].append(cost + data["cost"][-1])
-        with open(output_file, "w") as f:
-            json.dump(data, f, indent=2)
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False, cls=NpEncoder)
 
         return pandas_code
     

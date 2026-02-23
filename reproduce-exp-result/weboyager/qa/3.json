@@ -1,0 +1,19 @@
+{
+    "id": 3,
+    "claim": "What percentage of veterans are unemployed in 2023?",
+    "label": "2.8",
+    "searched query": "percentage of veterans unemployed 2023",
+    "thought": "The subscription dialog must be closed in order to access the information. The veteran unemployment rate is 4.0%.",
+    "result": "",
+    "data": "",
+    "code": "",
+    "sources": [
+        "https://www.google.com/search?q=percentage+of+veterans+unemployed+2023&sca_esv=c6c0271301e3a973&source=hp&ei=5nySabv-MJXD4-EPtKjdmQ8&iflsig=AFdpzrgAAAAAaZKK9jfHxidl-YfgpFOFiiPoTBjft5JC&ved=0ahUKEwi7iePS99ySAxWV4TgGHTRUN_MQ4dUDCCY&uact=5&oq=percentage+of+veterans+unemployed+2023&gs_lp=Egdnd3Mtd2l6IiZwZXJjZW50YWdlIG9mIHZldGVyYW5zIHVuZW1wbG95ZWQgMjAyMzIFEAAY7wUyBRAAGO8FMgUQABjvBTIFEAAY7wUyBRAAGO8FSIoeUABYqA5wA3gAkAEDmAGfAaABwASqAQMwLjS4AQPIAQD4AQGYAgSgApcBqAIKwgIKEAAYAxjqAhiPAcICChAuGAMY6gIYjwGYAw_xBbLHP44xcdwmkgcDMy4xoAezE7IHAzAuMbgHfMIHBTItMy4xyAcbgAgA&sclient=gws-wiz&sei=IH2SabfUE86d4-EP89bRGQ",
+        "https://www.google.com/search?q=percentage+of+veterans+unemployed+2023&sca_esv=c6c0271301e3a973&source=hp&ei=5nySabv-MJXD4-EPtKjdmQ8&iflsig=AFdpzrgAAAAAaZKK9jfHxidl-YfgpFOFiiPoTBjft5JC&ved=0ahUKEwi7iePS99ySAxWV4TgGHTRUN_MQ4dUDCCY&uact=5&oq=percentage+of+veterans+unemployed+2023&gs_lp=Egdnd3Mtd2l6IiZwZXJjZW50YWdlIG9mIHZldGVyYW5zIHVuZW1wbG95ZWQgMjAyMzIFEAAY7wUyBRAAGO8FMgUQABjvBTIFEAAY7wUyBRAAGO8FSIoeUABYqA5wA3gAkAEDmAGfAaABwASqAQMwLjS4AQPIAQD4AQGYAgSgApcBqAIKwgIKEAAYAxjqAhiPAcICChAuGAMY6gIYjwGYAw_xBbLHP44xcdwmkgcDMy4xoAezE7IHAzAuMbgHfMIHBTItMy4xyAcbgAgA&sclient=gws-wiz&sei=IH2SabfUE86d4-EP89bRGQ",
+        "https://www.google.com/search?q=percentage+of+veterans+unemployed+2023&sca_esv=c6c0271301e3a973&source=hp&ei=5nySabv-MJXD4-EPtKjdmQ8&iflsig=AFdpzrgAAAAAaZKK9jfHxidl-YfgpFOFiiPoTBjft5JC&ved=0ahUKEwi7iePS99ySAxWV4TgGHTRUN_MQ4dUDCCY&uact=5&oq=percentage+of+veterans+unemployed+2023&gs_lp=Egdnd3Mtd2l6IiZwZXJjZW50YWdlIG9mIHZldGVyYW5zIHVuZW1wbG95ZWQgMjAyMzIFEAAY7wUyBRAAGO8FMgUQABjvBTIFEAAY7wUyBRAAGO8FSIoeUABYqA5wA3gAkAEDmAGfAaABwASqAQMwLjS4AQPIAQD4AQGYAgSgApcBqAIKwgIKEAAYAxjqAhiPAcICChAuGAMY6gIYjwGYAw_xBbLHP44xcdwmkgcDMy4xoAezE7IHAzAuMbgHfMIHBTItMy4xyAcbgAgA&sclient=gws-wiz&sei=IH2SabfUE86d4-EP89bRGQ",
+        "https://www.google.com/search?sca_esv=c6c0271301e3a973&q=Veteran+unemployment+rate&sa=X&ved=2ahUKEwj506Xu99ySAxUWxDgGHcweGC4Q1QJ6BAhJEAE&biw=1006&bih=620&dpr=1",
+        "https://www.dol.gov/agencies/vets/latest-numbers",
+        "https://www.dol.gov/agencies/vets/latest-numbers"
+    ],
+    "cost": 0.1528191
+}

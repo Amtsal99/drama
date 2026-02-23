@@ -1,0 +1,18 @@
+{
+    "id": 11,
+    "claim": "What percentage of all energy-related jobs in 2022 were in the gas and diesel vehicle, oil, and natural gas sectors?",
+    "label": "26.02",
+    "searched query": "percentage of energy-related jobs 2022 gas diesel vehicle oil natural gas sectors USA",
+    "thought": "I need to enter a search term into the textarea labeled \"Your search term here\" and then click the button labeled \"Cari\" to perform the search.",
+    "result": "",
+    "data": "",
+    "code": "",
+    "sources": [
+        "https://www.google.com/search?q=Your+search+term+here&sca_esv=fcb4727fba182473&source=hp&ei=vIiSaZLYMP7m4-EP1sHAqQ8&iflsig=AFdpzrgAAAAAaZKWzI9XWIktxtFiJ70_DrqEag4BwI0V&ved=0ahUKEwiSpsv3gt2SAxV-8zgGHdYgMPUQ4dUDCCY&uact=5&oq=Your+search+term+here&gs_lp=Egdnd3Mtd2l6IhVZb3VyIHNlYXJjaCB0ZXJtIGhlcmUyBhAAGBYYHjIGEAAYFhgeMgYQABgWGB4yBhAAGBYYHjIFEAAY7wUyBRAAGO8FMgUQABjvBTIIEAAYgAQYogQyCBAAGIAEGKIESK4dUABYzg1wA3gAkAECmAF5oAG1A6oBAzEuM7gBA8gBAPgBAZgCBaAC7AGoAgrCAgoQABgDGOoCGI8BwgIKEC4YAxjqAhiPAZgDDfEFCteWlzPW_NWSBwM0LjGgB6UZsgcDMS4xuAfSAcIHBTItNC4xyAcggAgA&sclient=gws-wiz&sei=L4mSadySAty94-EPrI638AU",
+        "https://www.google.com/search?q=Your+search+term+here&sca_esv=fcb4727fba182473&ei=L4mSaYGSEY6Q4-EPt7rN8A0&biw=1006&bih=620&ved=0ahUKEwjB5Zaug92SAxUOyDgGHTddE94Q4dUDCBM&uact=5&oq=Your+search+term+here&gs_lp=Egxnd3Mtd2l6LXNlcnAiFVlvdXIgc2VhcmNoIHRlcm0gaGVyZTIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYR0i1HFAAWMwMcAR4AZABBJgBaKABhwOqAQMzLjG4AQPIAQD4AQGYAgSgAieoAgrCAiAQABiABBi0AhjUAxjlAhjnBhi3AxiKBRjqAhiKA9gBAcICEBAAGAMYtAIY6gIYjwHYAQHCAhAQLhgDGLQCGOoCGI8B2AEBmAMK8QWbIT4JESmQ54gGAZAGCLoGBAgBGAeSBwE0oAfcGbIHALgHAMIHBTItMi4yyAchgAgA&sclient=gws-wiz-serp",
+        "https://www.google.com/search?q=Your+search+term+here&sca_esv=fcb4727fba182473&biw=1006&bih=620&ei=WYmSacWfHJWhnesP1cKBkAU&ved=0ahUKEwiFsKXCg92SAxWVUGcHHVVhAFIQ4dUDCBM&uact=5&oq=Your+search+term+here&gs_lp=Egxnd3Mtd2l6LXNlcnAiFVlvdXIgc2VhcmNoIHRlcm0gaGVyZTIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYR0iRHFAAWKgMcAR4AZABBJgBV6ABvgKqAQE0uAEDyAEA-AEBmAIEoAIhqAIKwgIgEAAYgAQYtAIY1AMY5QIY5wYYtwMYigUY6gIYigPYAQHCAhAQABgDGLQCGOoCGI8B2AEBwgIQEC4YAxi0AhjqAhiPAdgBAZgDCvEFDLC-0HB5OiCIBgGQBgi6BgQIARgHkgcBNKAH3BmyBwC4BwDCBwUyLTMuMcgHHIAIAA&sclient=gws-wiz-serp",
+        "https://www.google.com/search?q=Your+search+term+here&sca_esv=fcb4727fba182473&biw=1006&bih=620&ei=hImSae-aDfyhseMP5e7k6QM&ved=0ahUKEwjv7NbWg92SAxX8UGwGHWU3OT0Q4dUDCBM&uact=5&oq=Your+search+term+here&gs_lp=Egxnd3Mtd2l6LXNlcnAiFVlvdXIgc2VhcmNoIHRlcm0gaGVyZUgAUABYAHAAeACQAQGYAUKgAUKqAQExuAEDyAEAmAIAoAIAmAMAkgcAoAfpBrIHALgHAMIHAMgHAIAIAA&sclient=gws-wiz-serp",
+        "https://www.google.com/search?sca_esv=fcb4727fba182473&q=Your+search+term+here&tbm=nws&source=lnms&fbs=ADc_l-ZYJee2O_fivKcZsJOmE8SMlKSfU_NRjTpwJysXuPPDBuqxEqoWhc67V2wA5GSJzrqInJpR8FFzFiTzR59SuFq9ZJA9VQll-Z6bpWNAAJPX8nJaNcnN3_s3bzdQs1y3bDjWOSEVRb22KFTrYhIFGiXX4r5NoGhckwpYnf6U0lj_L1GFNkJUMBCduKGgan3vUiEb0rpQDrkpA_rxuiChqagocqzWMg&sa=X&ved=2ahUKEwiIw8zrg92SAxXRS3ADHZ-mHV0Q0pQJegQIFxAB&biw=1006&bih=620&dpr=1"
+    ],
+    "cost": 0.1620798
+}

@@ -1,0 +1,12 @@
+{
+    "id": 20,
+    "claim": "By what percentage are the median usual weekly earnings of individuals with a Bachelor's degree higher than those of individuals with only a high school diploma in 2022?",
+    "label": "67.88",
+    "searched query": "median usual weekly earnings Bachelor's degree high school diploma percentage comparison 2022",
+    "thought": "The screenshot displays the Google homepage with various elements such as search functionality, language options, and navigation buttons. These elements are organized and suggest active features for user interaction, including language choices and search input. This summary will facilitate an understanding of how these features may be used.\n\n###",
+    "result": "Analyze Google homepage layout\n\n### Sample CSV Data:",
+    "data": "Degree,Median_Weekly_Earnings_2022\nBachelor's Degree,1350\nHigh School Diploma,800",
+    "code": "import pandas as pd\n\ndef answer_question(df):\n    bachelor_earnings = df.loc[df['Degree'] == \"Bachelor's Degree\", 'Median_Weekly_Earnings_2022'].values[0]\n    high_school_earnings = df.loc[df['Degree'] == \"High School Diploma\", 'Median_Weekly_Earnings_2022'].values[0]\n    return bachelor_earnings, high_school_earnings",
+    "sources": [],
+    "cost": 0.085041
+}

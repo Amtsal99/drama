@@ -15,7 +15,7 @@ const PRICE_PER_TOKEN_OUTPUT_GPT_4o_MINI = 0.0000006
 
 export async function POST(request: Request) {
   try {
-    const { prompt, platformModel = 'google__gemini-flash' } =
+    const { prompt, platformModel = 'openai__gpt-4o-mini-2024-07-18' } =
       (await request.json()) as {
         prompt: string
         platformModel: ModelVariant

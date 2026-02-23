@@ -11,7 +11,7 @@ fi
 for ID in {1..100}; do
   echo "Running $TASK for ID $ID..."
   poetry run run-drama \
-    --model "gpt-4o-2024-11-20" \
+    --model "gpt-4o-mini" \
     --id "$ID" \
     --task "$TASK" \
     --report_folder reports

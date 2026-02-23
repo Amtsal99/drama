@@ -1,0 +1,9 @@
+{
+  "result": 32.50001288108696,
+  "data": "Year,Population\r\n2022,582249\r\n2024,771480\r\n",
+  "code": "import pandas as pd\n\ndef answer_question(df):\n    \"\"\"\n    Calculates the percentage increase in the total homeless population in the U.S. from 2022 to 2024.\n\n    Args:\n        df (pd.DataFrame): A DataFrame with 'Year' and 'Population' columns.\n\n    Returns:\n        float: The percentage increase in population from 2022 to 2024.\n    \"\"\"\n    # Ensure 'Population' column is numeric\n    df['Population'] = pd.to_numeric(df['Population'])\n\n    population_2022 = df[df['Year'] == 2022]['Population'].iloc[0]\n    population_2024 = df[df['Year'] == 2024]['Population'].iloc[0]\n\n    percentage_increase = ((population_2024 - population_2022) / population_2022) * 100\n\n    return percentage_increase",
+  "search_path": [
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFkWqgE_u8D3PscntT7cE-Ur0rkQsRLhTigLHGtOjkvJX8KC797JpbAvmv4bWxpsnhNezN6Il1WC_ttQaLBRcHf8FSyG8aDpW78iT9rGQNBBx7Zf8G8XIWiADUKaAt_Swk7282K66N63WxXPKzz3eNmw0fTAZcmtSQMrges0ZJ5S_EvefE8EX1_ZjCGI3oCpxGLS3Jj8mjcLw=="
+  ],
+  "cost": 0.0019046000000000002
+}

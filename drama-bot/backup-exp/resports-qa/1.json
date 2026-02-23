@@ -1,0 +1,10 @@
+{
+  "result": "Hawaii",
+  "data": "State,HomelessnessRatePer100000\r\nHawaii,805\r\nNew York,795\r\nOregon,535\r\nVermont,533\r\nCalifornia,474\r\nMassachusetts,411\r\nWashington,396\r\nAlaska,363\r\nColorado,314\r\nNevada,309\r\n",
+  "code": "import pandas as pd\n\ndef answer_question(df):\n    \"\"\"\n    Finds the state with the highest rate of homelessness.\n\n    Args:\n        df (pd.DataFrame): A DataFrame with 'State' and 'HomelessnessRatePer100000' columns.\n\n    Returns:\n        str: The name of the state with the highest homelessness rate.\n    \"\"\"\n    \n    # Ensure 'HomelessnessRatePer100000' is numeric\n    df['HomelessnessRatePer100000'] = pd.to_numeric(df['HomelessnessRatePer100000'], errors='coerce')\n    \n    # Find the row with the maximum homelessness rate\n    max_homelessness_state_row = df.loc[df['HomelessnessRatePer100000'].idxmax()]\n    \n    # Return the state name from that row\n    return max_homelessness_state_row['State']",
+  "search_path": [
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQF2znKXqOprT2zlyEQQ-iCXfBdRDNlyqonRrdsjQAtBKG21ADGjK0GR3otmtv9Vb2rHnFrPmQe_tcXRU5IeTrGbD4PwpKCeSj7sBh-vwNp_ktPhKmReklsgMsQJqxPvPLqQ_8z0DOvObrDIGSlBLB_acgFZyYPHPBKinCmtB9f52_9VQ38GMsDkS0cCFMAJe1IGQ0e7gLDIOg==",
+    "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGeKku-cIMTEx_nbCUtwBWafLP9Hf41XQZi9VnKMXhm9HNhjPqnXessGed0FfA047qf2f5puAr4_GhgffmQ-8l0Vjtw565-Q-uxMFLtnbrSzU2MWTTWtB3vhBrjK2YG_0_RonKLBgk1yMImQGgLP_wn9n8AI177WeFxCuXj4qG5_wXfc7lFySpEu8Scty5EQE06pbKvj0yHS5YTXbhZet8w9g=="
+  ],
+  "cost": 0.0017219000000000002
+}

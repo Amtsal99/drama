@@ -151,12 +151,6 @@ def run_deep_research(input_data, directory, isQa, max_workers):
             future = executor.submit(run_single_task, item, isQa, directory)
             futures.append(future)
     
-    #wipe directory if needed
-    # with os.scandir("../output") as entries:
-    #     for entry in entries:
-    #         if entry.is_file() and entry.name != "cost.json":
-    #             os.unlink(entry.path)
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--test_file', type=str, default='input/qa.json')

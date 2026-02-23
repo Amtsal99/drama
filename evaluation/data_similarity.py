@@ -35,11 +35,11 @@ def eval_data_llm(df1, df2, query, action):
     ]
     load_dotenv()
     openai_api_key = os.getenv('OPENAI_API_KEY')
-    openai_org = os.getenv('OPENAI_ORG')
-    client = OpenAI(api_key=openai_api_key, organization=openai_org)
+    # openai_org = os.getenv('OPENAI_ORG')
+    client = OpenAI(api_key=openai_api_key)
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o-mini-2024-07-18",
         messages=messages,
     ).choices[0].message.content
 
@@ -54,11 +54,11 @@ def eval_data_llm_column_match(df1, df2, query, action):
         }
     ]
     openai_api_key = os.getenv('OPENAI_API_KEY')
-    openai_org = os.getenv('OPENAI_ORG')
-    client = OpenAI(api_key=openai_api_key, organization=openai_org)
+    # openai_org = os.getenv('OPENAI_ORG')
+    client = OpenAI(api_key=openai_api_key)
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o-mini-2024-07-18",
         messages=messages,
     ).choices[0].message.content
 
@@ -67,8 +67,8 @@ def eval_data_llm_column_match(df1, df2, query, action):
 def eval_data_embedding(df1, df2):
     load_dotenv()
     openai_api_key = os.getenv('OPENAI_API_KEY')
-    openai_org = os.getenv('OPENAI_ORG')
-    client = OpenAI(api_key=openai_api_key, organization=openai_org)
+    # openai_org = os.getenv('OPENAI_ORG')
+    client = OpenAI(api_key=openai_api_key)
 
     text1 = f"{df1.head()}"
     text2 = f"{df2.head()}"
@@ -82,8 +82,8 @@ def eval_data_embedding_column_match(df1, df2):
     df2_cols = list(df2.columns.values)
 
     openai_api_key = os.getenv('OPENAI_API_KEY')
-    openai_org = os.getenv('OPENAI_ORG')
-    client = OpenAI(api_key=openai_api_key, organization=openai_org)
+    # openai_org = os.getenv('OPENAI_ORG')
+    client = OpenAI(api_key=openai_api_key)
 
     df1_embeddings = []
     for col in df1_cols:
