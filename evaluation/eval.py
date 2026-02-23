@@ -10,6 +10,9 @@ from io import StringIO
 from code_similarity import eval_code
 from data_similarity import eval_data
 
+from dotenv import load_dotenv
+from google import genai
+
 BLACKLIST = ["x.com", "twitter.com", "politifact.com", "factcheck.org", "reuters.com", "instagram.com", "facebook.com", "guardian.com", "usafacts.org", "threads.net"]
 
 def eval_end_res(query, result, task):
@@ -28,7 +31,7 @@ def eval_end_res(query, result, task):
         else:
             return result.strip().lower() == gt.strip().lower()
 
-def evaluation(task, id, report_folder):
+def evaluation(task, id, report_folder, client: genai.Client):
 
     def convert_np(obj):
         if isinstance(obj, np.generic):
@@ -109,25 +112,25 @@ def evaluation(task, id, report_folder):
         df_gt = pd.read_csv(f"../drama-bench/{task}/ground-truths/{id}/data.csv", sep="\t")
 
     try:
-        data_sim1 = eval_data(data, df_gt, task, query, False, "llm-as-a-judge")
+        data_sim1 = eval_data(data, df_gt, task, query, client, False, "llm-as-a-judge")
     except:
         data_sim1 = 0
     print(f"Sim1: ", data_sim1)
 
     try:
-        data_sim2 = eval_data(data, df_gt, task, query, False, "embedding")
+        data_sim2 = eval_data(data, df_gt, task, query, client, False, "embedding")
     except:
         data_sim2 = 0
     print(f"Sim2: ", data_sim2)
 
     try:
-        data_sim3 = eval_data(data, df_gt, task, query, True, "llm-as-a-judge")
+        data_sim3 = eval_data(data, df_gt, task, query, client, True, "llm-as-a-judge")
     except:
         data_sim3 = 0
     print(f"Sim3: ", data_sim3)
 
     try:
-        data_sim4 = eval_data(data, df_gt, task, query, True, "embedding")
+        data_sim4 = eval_data(data, df_gt, task, query, client, True, "embedding")
     except:
         data_sim4 = 0
     print(f"Sim4: ", data_sim4)
@@ -138,25 +141,25 @@ def evaluation(task, id, report_folder):
         code_gt = f.read()
 
     try:
-        code_sim1 = eval_code(code, code_gt, task, query, False, "llm-as-a-judge")
+        code_sim1 = eval_code(code, code_gt, task, query, client, False, "llm-as-a-judge")
     except:
         code_sim1 = 0
     print(f"Sim1: ", code_sim1)
 
     try:
-        code_sim2 = eval_code(code, code_gt, task, query, False, "embedding")
+        code_sim2 = eval_code(code, code_gt, task, query, client, False, "embedding")
     except:
         code_sim2 = 0
     print(f"Sim2: ", code_sim2)
 
     try:
-        code_sim3 = eval_code(code, code_gt, task, query, True, "llm-as-a-judge")
+        code_sim3 = eval_code(code, code_gt, task, query, client, True, "llm-as-a-judge")
     except:
         code_sim3 = 0
     print(f"Sim3: ", code_sim3)
 
     try:
-        code_sim4 = eval_code(code, code_gt, task, query, True, "embedding")
+        code_sim4 = eval_code(code, code_gt, task, query, client, True, "embedding")
     except:
         code_sim4 = 0
     print(f"Sim4: ", code_sim4)
@@ -196,5 +199,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    load_dotenv()
+    gemini_client = genai.Client(os.getenv("GOOGLE_API_KEY"))
+
     for id in range(1, 101):
-        evaluation(args.task, id, args.report_folder)
+        evaluation(args.task, id, args.report_folder, client=gemini_client)

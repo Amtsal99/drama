@@ -9,24 +9,29 @@ import zipfile
 import shutil
 import pandas as pd
 from io import StringIO
-from openai import OpenAI
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException
-from openai import OpenAI
+
+from google import genai
+# from google.api_core import exceptions
+from google.genai import types, errors as exceptions
+# from google.genai import exceptions
 
 from .utils_webbrowser import get_web_element_rect, encode_image, extract_information, get_webarena_accessibility_tree, clip_message_and_obs
+from .gemini_tool import calculate_gemini_cost
 
 from agent.prompts import RETRIEVER_FIND_WEBSITE_TASK_DESC, RETRIEVER_SEARCH_TERM_DESC, RETRIEVER_BROWSE_SYSTEM_PROMPT
 from agent.utils import BLACKLIST, COST_DICT
 
 class WebBrowser:
-    def __init__(self, api_key, api_model, org, output_dir, task):
-        self.client = OpenAI(api_key=api_key, organization=org)
-        self.max_iter = 1
+    def __init__(self, api_model, client: genai.Client, output_dir, task):
+        # self.client = OpenAI(api_key=api_key, organization=org)
+        self.client = client
+        self.max_iter = 10
         self.api_model = api_model
         self.output_dir = output_dir
         self.window_width = 1024
@@ -34,6 +39,8 @@ class WebBrowser:
         self.max_attached_imgs = 3
         self.fix_box_color = True
         self.seed = 42
+        
+        self.number_of_downloaded_files = len(os.listdir(self.output_dir))
 
         # for driver_config
         self.save_accessibility_tree = False
@@ -62,6 +69,7 @@ class WebBrowser:
 
             df = df.drop(columns=["Source"])
 
+            # same dir n name with data transformer
             output_csv_path = f"{self.output_dir}/data.csv"
 
             df.to_csv(output_csv_path, index=False)
@@ -76,6 +84,7 @@ class WebBrowser:
                     for file_name in os.listdir(download_path):
                         full_file_path = os.path.join(download_path, file_name)
                         if os.path.isfile(full_file_path):
+                            # same dir but diff name with data transformer
                             shutil.copy(full_file_path, self.output_dir)
                     return search_path
 
@@ -96,6 +105,7 @@ class WebBrowser:
                 for file_name in os.listdir(self.output_dir):
                         file_path = os.path.join(self.output_dir, file_name)
 
+                        # same dir but diff name with data transformer
                         # Check if the file is a zip file
                         if zipfile.is_zipfile(file_path):
                             print(f"Unzipping: {file_name}")
@@ -114,26 +124,33 @@ class WebBrowser:
             action = "verify"
         else:
             action = "answer"
-        messages = [
+        
+        # convert to gemini standard json format 
+        contents = [
             {
                 "role": "user",
-                "content": RETRIEVER_SEARCH_TERM_DESC.format(action=action, query=query)
+                "parts": [
+                    {"text" : RETRIEVER_SEARCH_TERM_DESC.format(action=action, query=query)}
+                ]
             }
         ]
 
-        response = self.client.chat.completions.create(
+        # time.sleep(12)
+        response = self.client.models.generate_content(
             model=self.api_model,
-            messages=messages,
+            contents=contents,
         )
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gemini_cost(response, model_name=self.api_model)
+        
+        # parts_response = parse_gemini_response(response)
 
-        logging.info(f"Search Term: {response.choices[0].message.content}")
+        logging.info(f"Search Term: {response.text}")
 
         output_file = os.path.join(self.output_dir, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
-        data["trace"].append(f"search term: {response}")
+        data["trace"].append(f"search term: {response.text}")
         if len(data["cost"]) == 0:
             data["cost"].append(cost) 
         else:
@@ -141,7 +158,7 @@ class WebBrowser:
         with open(output_file, "w") as f:
             json.dump(data, f, indent=2)
 
-        return response.choices[0].message.content
+        return response.text
     
     # The browsing behavior
     def browse(self, query, search_term):
@@ -181,8 +198,11 @@ class WebBrowser:
             action = "verify"
         else:
             action = "answer"
-
-        messages = [{'role': 'system', 'content': RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST)}]
+            
+        # gemini_model = configure_gemini_model(self.api_model, system_prompt=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST))
+        
+        messages = []
+                    
         obs_prompt = "Observation: please analyze the attached screenshot and give the Thought and Action. "
 
         init_msg = RETRIEVER_FIND_WEBSITE_TASK_DESC.format(action=action, query=query, search_term=search_term) + obs_prompt
@@ -222,33 +242,37 @@ class WebBrowser:
                     accessibility_tree_path = os.path.join(self.output_dir, 'accessibility_tree{}'.format(it))
                     get_webarena_accessibility_tree(driver_task, accessibility_tree_path)
 
-                # encode image
-                b64_img = encode_image(img_path)
-
                 # format msg
-                curr_msg = format_msg(it, init_msg, pdf_obs, warn_obs, b64_img, web_eles_text)
+                curr_msg = format_msg(it, init_msg, pdf_obs, warn_obs, img_path, web_eles_text)
                 messages.append(curr_msg)
             else:
                 curr_msg = {
                     'role': 'user',
-                    'content': fail_obs
+                    'parts': [{'text': fail_obs}]
                 }
                 messages.append(curr_msg)
 
             messages = clip_message_and_obs(messages, self.max_attached_imgs)
 
             # Call GPT-4v API
-            prompt_tokens, completion_tokens, gpt_call_error, openai_response = call_gpt4v_api(self.client, messages, self.api_model, self.seed)
+            # prompt_tokens, completion_tokens, gpt_call_error, openai_response = call_gpt4v_api(self.client, messages, self.api_model, self.seed)
+            
+            # to avoid reaching rate limit
+            time.sleep(12)
+            
+            # call gemini-2.5-flash API
+            prompt_tokens, completion_tokens, gemini_call_error, gemini_response = call_gemini_api(client=self.client, api_model=self.api_model, messages=messages, seed=self.seed, action=action)
 
-            if gpt_call_error:
+            if gemini_call_error:
                 break
             else:
                 accumulate_prompt_token += prompt_tokens
                 accumulate_completion_token += completion_tokens
                 logging.info(f'Accumulate Prompt Tokens: {accumulate_prompt_token}; Accumulate Completion Tokens: {accumulate_completion_token}')
                 logging.info('API call complete...')
-            gpt_4v_res = openai_response.choices[0].message.content
-            messages.append({'role': 'assistant', 'content': gpt_4v_res})
+            # parts_gemini_response = parse_gemini_response(gemini_response)
+            gemini_response_text = gemini_response.text
+            messages.append({'role': 'assistant', 'content': gemini_response_text})
 
             # remove the rects on the website
             if rects:
@@ -259,14 +283,14 @@ class WebBrowser:
 
             # extract action info
             try:
-                assert 'Thought:' in gpt_4v_res and 'Action:' in gpt_4v_res
+                assert 'Thought:' in gemini_response_text and 'Action:' in gemini_response_text
             except AssertionError as e:
                 logging.error(e)
                 fail_obs = "Format ERROR: Both 'Thought' and 'Action' should be included in your reply."
                 continue
 
-            # bot_thought = re.split(pattern, gpt_4v_res)[1].strip()
-            chosen_action = re.split(pattern, gpt_4v_res)[2].strip()
+            # bot_thought = re.split(pattern, gemini_response_text)[1].strip()
+            chosen_action = re.split(pattern, gemini_response_text)[2].strip()
             action_key, info = extract_information(chosen_action)
             trace += "\n" + f"Action Key: {action_key}"
             trace += "\n" + f"Info: {info}"
@@ -325,7 +349,7 @@ class WebBrowser:
                             break
 
                         if time.time() - start_time > 120:
-                            logging.info("5 minutes have passed without any change in the output directory.")
+                            logging.info("2 minutes have passed without any change in the output directory.")
                             warn_obs = "\n This is not a valid download link."
                             break
                     if downloaded:
@@ -404,98 +428,96 @@ def driver_config(save_accessibility_tree, force_device_scale, headless, downloa
     return options
 
 
-def format_msg(it, init_msg, pdf_obs, warn_obs, web_img_b64, web_text):
+def format_msg(it, init_msg, pdf_obs, warn_obs, img_path, web_text):
+    guidance_text = f"I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"
+    
     if it == 1:
-        init_msg += f"I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"
-        init_msg_format = {
-            'role': 'user',
-            'content': [
-                {'type': 'text', 'text': init_msg},
-            ]
-        }
-        init_msg_format['content'].append({"type": "image_url",
-                                           "image_url": {"url": f"data:image/png;base64,{web_img_b64}"}})
-        return init_msg_format
+        text_content = f"{init_msg}{guidance_text}"
     else:
         if not pdf_obs:
-            curr_msg = {
-                'role': 'user',
-                'content': [
-                    {'type': 'text', 'text': f"Observation:{warn_obs} please analyze the attached screenshot and give the Thought and Action. I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"},
-                    {
-                        'type': 'image_url',
-                        'image_url': {"url": f"data:image/png;base64,{web_img_b64}"}
-                    }
-                ]
-            }
+            text_content = f"Observation:{warn_obs} please analyze the attached screenshot and give the Thought and Action. {guidance_text}"
         else:
-            curr_msg = {
-                'role': 'user',
-                'content': [
-                    {'type': 'text', 'text': f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The screenshot of the current page is also attached, give the Thought and Action. I've provided the tag name of each element and the text it contains (if text exists). Note that <textarea> or <input> may be textbox, but not exactly. Please focus more on the screenshot and then refer to the textual information.\n{web_text}"},
-                    {
-                        'type': 'image_url',
-                        'image_url': {"url": f"data:image/png;base64,{web_img_b64}"}
-                    }
-                ]
-            }
-        return curr_msg
+            text_content = f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The screenshot of the current page is also attached, give the Thought and Action. {guidance_text}"
 
+    with open(img_path, 'rb') as f:
+        image_bytes = f.read()
 
-def format_msg_text_only(it, init_msg, pdf_obs, warn_obs, ac_tree):
-    if it == 1:
-        init_msg_format = {
-            'role': 'user',
-            'content': init_msg + '\n' + ac_tree
-        }
-        return init_msg_format
-    else:
-        if not pdf_obs:
-            curr_msg = {
-                'role': 'user',
-                'content': f"Observation:{warn_obs} please analyze the accessibility tree and give the Thought and Action.\n{ac_tree}"
-            }
-        else:
-            curr_msg = {
-                'role': 'user',
-                'content': f"Observation: {pdf_obs} Please analyze the response given by Assistant, then consider whether to continue iterating or not. The accessibility tree of the current page is also given, give the Thought and Action.\n{ac_tree}"
-            }
-        return curr_msg
+    curr_msg = types.Content(
+        role='user',
+        parts=[
+            types.Part.from_text(text=text_content),
+            types.Part.from_bytes(
+                data=image_bytes,
+                mime_type='image/png'
+            )
+        ]
+    )
+    
+    return curr_msg
 
-
-def call_gpt4v_api(openai_client, messages, api_model, seed):
+def call_gemini_api(client: genai.Client, api_model, messages, seed, action):
+            
+    # gemini_model = configure_gemini_model(api_model, system_prompt=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST))
+    
     retry_times = 0
+    generation_conf = types.GenerateContentConfig(
+        system_instructions=RETRIEVER_BROWSE_SYSTEM_PROMPT.format(action=action, blacklist=BLACKLIST),
+        max_output_tokens=8192,
+        seed=seed,
+        http_options=types.HttpOptions(timeout=600)
+    )
+    
     while True:
         try:
-            openai_response = openai_client.chat.completions.create(
-                model=api_model, messages=messages, max_tokens=1000, seed=seed
+            # to avoid reaching rate limit for free tier API
+            # time.sleep(12)
+            response:types.GenerateContentResponse = client.models.generate_content(
+                model=api_model,
+                contents=messages,
+                config=generation_conf
             )
-            prompt_tokens = openai_response.usage.prompt_tokens
-            completion_tokens = openai_response.usage.completion_tokens
-
-            gpt_call_error = False
-            return prompt_tokens, completion_tokens, gpt_call_error, openai_response
-
-        except Exception as e:
-            logging.info(f'Error occurred, retrying. Error type: {type(e).__name__}')
-
-            if type(e).__name__ == 'RateLimitError':
+            if not response.parts:
+                logging.warning(f"Gemini response blocked by safety filters. Feedback: {response.prompt_feedback}")
+                return None, None, True, None
+            
+            prompt_tokens = response.usage_metadata.prompt_token_count
+            completion_tokens = response.usage_metadata.candidates_token_count
+            
+            gemini_call_error = False
+            
+            return prompt_tokens, completion_tokens, gemini_call_error, response
+            
+        except exceptions.APIError as e: 
+            if e.code == 429:
+                logging.info(f'Gemini Quota Exceeded (Rate Limit), retrying... Error: {e.message}')
                 time.sleep(10)
-
-            elif type(e).__name__ == 'APIError':
+            
+            elif e.code == 503:
+                logging.info(f'Gemini Service Unavailable (Overloaded), retrying... Error: {e.message}')
                 time.sleep(15)
-
-            elif type(e).__name__ == 'InvalidRequestError':
-                gpt_call_error = True
-                return None, None, gpt_call_error, None
-
+                
+            elif e.code == 500:
+                logging.info(f'Gemini Internal Server Error, retrying... Error: {e.message}')
+                time.sleep(15)
+                
+            elif e.code == 400:
+                logging.error(f'Fatal Input Error: {e.message}')
+                return None, None, True, None
+                
             else:
-                gpt_call_error = True
-                return None, None, gpt_call_error, None
+                logging.error(f'Other API Error ({e.code}): {e.message}')
+                retry_times += 1
+                time.sleep(5)
+                logging.error(f'Unknown Error occurred: {type(e).__name__} - {e}')
+                return None, None, True, None
+            
+        except Exception as e:
+            logging.error(f'Unknown Error occurred: {type(e).__name__} - {e}')
+            return None, None, True, None
 
         retry_times += 1
         if retry_times == 10:
-            logging.info('Retrying too many times')
+            logging.info('Retrying too many times (Gemini)')
             return None, None, True, None
 
 

@@ -23,10 +23,10 @@ export const CONFIG = {
   // AI Platform settings
   platforms: {
     google: {
-      enabled: false,
+      enabled: true,
       models: {
         'gemini-flash': {
-          enabled: false,
+          enabled: true,
           label: 'Gemini Flash',
         },
         'gemini-flash-thinking': {
@@ -49,18 +49,18 @@ export const CONFIG = {
       },
     },
     openai: {
-      enabled: true,
+      enabled: false,
       models: {
         'gpt-4o-2024-11-20': {
-          enabled: true,
+          enabled: false,
           label: 'GPT-4o',
         },
         'o1-mini': {
-          enabled: true,
+          enabled: false,
           label: 'o1-mini',
         },
         o1: {
-          enabled: true,
+          enabled: false,
           label: 'o1',
         },
       },

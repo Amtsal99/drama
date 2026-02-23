@@ -8,6 +8,9 @@ import { Tiktoken } from "js-tiktoken/lite";
 import o200k_base from "js-tiktoken/ranks/o200k_base";
 import { addCost, getTotalCost } from '@/app/api/costTracker';
 
+const PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH = 0.0000003
+const PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH = 0.000025
+
 export async function POST(request: Request) {
   try {
     const { reports, platformModel } = await request.json()
@@ -132,22 +135,19 @@ CITATION GUIDELINES:
     console.log('Generated prompt:', prompt)
 
     try {
-      const response = await generateWithModel(prompt, platformModel)
+      const res = await generateWithModel(prompt, platformModel)
+                        
+      const input_token = res.usageMetadata?.promptTokenCount ?? 0.0;
+      const output_token = res.usageMetadata?.candidatesTokenCount ?? 0.0;
+      console.log("INPUT COST: ", input_token * PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH);
+      console.log("OUTPUT COST: ", output_token * PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH);
+      console.log("before cost: ", getTotalCost())
+      const cost = input_token * PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH + output_token * PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH;
+      addCost(cost)
+      console.log("after cost: ", getTotalCost())
 
-      if (!response) {
-        throw new Error('No response from model')
-      }
-
-      console.log('Model response:', response)
-      //Cost calculation
-      const encoding = new Tiktoken(o200k_base);
-      const tokens = encoding.encode(prompt).length;
-      const cost = 0.0000025 * tokens;
-      console.log("Encoded token length:", tokens);
-      console.log("Consolidate report cost: ", 0.0000025 * tokens);
-      addCost(cost);
-
-      // Try to parse the response as JSON, if it's not already
+      const response = res.text ?? ""
+            // Try to parse the response as JSON, if it's not already
       let parsedResponse
       try {
         parsedResponse =

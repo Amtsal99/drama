@@ -11,6 +11,9 @@ import { addCost, getTotalCost, resetCost } from '@/app/api/costTracker';
 import fs from 'fs';
 import { get } from 'http'
 
+const PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH = 0.0000003
+const PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH = 0.000025
+
 export const maxDuration = 60
 
 export async function POST(request: Request) {
@@ -156,14 +159,18 @@ CITATION GUIDELINES:
     console.log('Model:', model)
 
     try {
-      const response = await generateWithModel(systemPrompt, platformModel)
-      //Cost calculation
-      const encoding = new Tiktoken(o200k_base);
-      const tokens = encoding.encode(systemPrompt).length;
-      const cost = 0.0000025 * tokens;
-      addCost(cost);
-      console.log("Encoded token length:", tokens);
-      console.log("Generate report cost: ", cost);
+      const res = await generateWithModel(systemPrompt, platformModel)
+                        
+      const input_token = res.usageMetadata?.promptTokenCount ?? 0.0;
+      const output_token = res.usageMetadata?.candidatesTokenCount ?? 0.0;
+      console.log("INPUT COST: ", input_token * PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH);
+      console.log("OUTPUT COST: ", output_token * PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH);
+      console.log("before cost: ", getTotalCost())
+      const cost = input_token * PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH + output_token * PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH;
+      addCost(cost)
+      console.log("after cost: ", getTotalCost())
+
+      const response = res.text
 
       if (!response) {
         throw new Error('No response from model')

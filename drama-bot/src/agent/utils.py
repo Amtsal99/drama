@@ -68,5 +68,11 @@ COST_DICT = {
         "cost_per_input_token": 2.5e-06,
         "cost_per_output_token": 10e-06,
     },
+    "gemini-2.5-flash": {
+        "max_context": 1_000_000,
+        "cost_per_input_token": 3e-07,
+        "cost_per_output_token": 2.5e-06,
+    },
+    
 }
 

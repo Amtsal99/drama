@@ -125,6 +125,7 @@ class LlmModel(str, Enum, metaclass=LlmModelMeta):
     OLLAMA_DOLPHIN = "dolphin-mistral:latest"
     # OpenRouter models
     GEMINI_FLASH_1_5 = "google/gemini-flash-1.5"
+    GEMINI_FLASH_2_5 = "google/gemini-flash-2.5"
     GROK_BETA = "x-ai/grok-beta"
     MISTRAL_NEMO = "mistralai/mistral-nemo"
     COHERE_COMMAND_R_08_2024 = "cohere/command-r-08-2024"

@@ -17,6 +17,9 @@ type SearchResultInput = {
   content?: string
 }
 
+const PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH = 0.0000003
+const PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH = 0.000025
+
 export async function POST(request: Request) {
   try {
     const {
@@ -139,17 +142,23 @@ Format your response as a JSON object with this structure:
 Focus on finding results that provide unique, high-quality information relevant to the research topic.`
 
     try {
-      const response = await generateWithModel(systemPrompt, platformModel)
+      const res = await generateWithModel(systemPrompt, platformModel)
       
       //Cost calculation
-      const encoding = new Tiktoken(o200k_base);
-      const tokens = encoding.encode(systemPrompt).length;
-      const cost = 0.0000025 * tokens;
-      console.log("Encoded token length:", tokens);
-      console.log("Analyze results cost: ", 0.0000025 * tokens);
+      // const encoding = new Tiktoken(o200k_base);
+      // const tokens = encoding.encode(systemPrompt).length;
+      // const cost = 0.0000025 * tokens;
+      // console.log("Encoded token length:", tokens);
+      const input_token = res.usageMetadata?.promptTokenCount != undefined ? res.usageMetadata.promptTokenCount : 0.0;
+      const output_token = res.usageMetadata?.candidatesTokenCount != undefined ? res.usageMetadata.candidatesTokenCount : 0.0;
+      console.log("INPUT COST: ", input_token * PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH);
+      console.log("OUTPUT COST: ", output_token * PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH);
       console.log("before cost: ", getTotalCost())
+      const cost = input_token * PRICE_PER_TOKEN_INPUT_GEMINI_2_5_FLASH + output_token * PRICE_PER_TOKEN_OUTPUT_GEMINI_2_5_FLASH;
       addCost(cost)
       console.log("after cost: ", getTotalCost())
+
+      const response = res.text
 
       if (!response) {
         throw new Error('No response from model')

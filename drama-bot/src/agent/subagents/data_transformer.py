@@ -7,35 +7,43 @@ import pandas as pd
 import json
 import base64
 import requests
+import time
 import fnmatch
 import PyPDF2
 import pytesseract
 import logging
+from google import genai
 
 from agent.prompts import RETRIEVER_FILE_SELECTION_TASK_DESC, RETRIEVER_JOIN_TABLE_TASK_DESC, RETRIEVER_PDF_TASK_DESC, RETRIEVER_PLAN_TASK_DESC
 from agent.utils import COST_DICT
 
+from google import genai
+from google.genai import types
+
+from .gemini_tool import calculate_gemini_cost
+
 class DataTransformer:
-    def __init__(self, task, api_key, api_model, org, output_path, client):
+    def __init__(self, task, api_key, api_model, output_path, client: genai.Client):
         self.task = task
         self.client = client
         self.api_model = api_model
         self.output_path = output_path
         self.api_key = api_key
-        self.org = org
         self.checked_files = []
     
-    def run(self, query):
+    def run(self, query) :
         all_files = os.listdir(self.output_path)
         filtered_files = [
             f for f in all_files
             if os.path.isfile(os.path.join(self.output_path, f)) and not fnmatch.fnmatch(f, "screenshot*.png") and f != "output.json"
         ]
+        checked_files = []
         while len(self.checked_files) != len(filtered_files):
             res1, res2 = self.check_enough_info(query)
             if res1 == "True":
                 return True, res2
-            file = self.file_selection(query, res2)
+            file = self.file_selection(query, res2, checked_files)
+            checked_files.append(file)
 
             if file.endswith(".pdf"):
                 self.pdf_analyzer(query, file, res2)
@@ -44,6 +52,10 @@ class DataTransformer:
             elif file.endswith(".xlsx") or file.endswith(".xlsx"):
                 self.excel_converter(query, file, res2)
             self.checked_files.append(file)
+            
+        res1, res2 = self.check_enough_info(query)
+        return True if res1 == "True" else False, res2    
+        
     
     def jointables(self, query, df1, df2, missing_info):
         if self.task == "verification":
@@ -53,19 +65,24 @@ class DataTransformer:
 
         prompt = RETRIEVER_JOIN_TABLE_TASK_DESC.format(action=action, query=query, df1_columns=df1.columns, df1_head=df1.head(), df2_columns=df2.columns, df2_head=df2.head(), missing_info=missing_info)
 
-        response = self.client.chat.completions.create(
-            model=self.api_model,
-            messages=[
-                {"role": "system", "content": "You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting."},
-                {"role": "user", "content": prompt}
-            ]
+        # gemini_model = configure_gemini_model(self.api_model, system_prompt="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.")
+        gen_config = types.GenerateContentConfig(
+            system_instruction="You are a Python code generator specializing in Pandas. Provide only raw Python code without any markdown formatting.",
+        )
+        
+        
+        response = self.client.models.generate_content(
+            contents=[
+                {"role": "user", "parts": [{"text": prompt}]}
+            ],
+            config=gen_config
         )
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gemini_cost(response, model_name=self.api_model)
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
-        data["trace"].append(response.choices[0].message.content.strip())
+        data["trace"].append(response.text.strip())
         if len(data["cost"]) == 0:
             data["cost"].append(cost) 
         else:
@@ -73,7 +90,7 @@ class DataTransformer:
         with open(output_file, "w") as f:
             json.dump(data, f, indent=2)
         
-        pandas_code = response.choices[0].message.content.strip()
+        pandas_code = response.text.strip()
         
         pandas_code = re.sub(r'```python\n|```', '', pandas_code)
         
@@ -85,6 +102,7 @@ class DataTransformer:
         return exec_globals["result_table"]
     
     def check_enough_info(self, query):
+        # same dir n name with data browser csv file 
         if os.path.exists(f"{self.output_path}/data.csv"):
             df = pd.read_csv(f"{self.output_path}/data.csv")
             existing_columns = df.columns
@@ -99,23 +117,29 @@ class DataTransformer:
             action = "answer"
         
         def planner():
-            messages = [
+            
+            # gemini_model = configure_gemini_model(self.api_model)
+            
+            contents = [
                 {
                     "role": "user",
-                    "content": RETRIEVER_PLAN_TASK_DESC.format(action=action, query=query, existing_columns=existing_columns, df_head = df_head)
+                    "parts": [
+                        {"text": RETRIEVER_PLAN_TASK_DESC.format(action=action, query=query, existing_columns=existing_columns, df_head = df_head)}
+                    ]
                 }
             ]
 
-            response = self.client.chat.completions.create(
-                model=self.api_model,
-                messages=messages,
+            response = self.client.models.generate_content(
+                contents=contents
             )
-            response_content = response.choices[0].message.content
+            
+            # parts_response = parse_gemini_response(response)
+            response_content = response.text
             ls = response_content.split('#')
             res1 = ls[0]
             res2 = ls[1]
 
-            cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+            cost = calculate_gemini_cost(response, model_name=self.api_model)
             output_file = os.path.join(self.output_path, "output.json")
             with open(output_file, "r") as f:
                 data = json.load(f)
@@ -129,7 +153,7 @@ class DataTransformer:
                 return res1, res2
         return planner()
     
-    def file_selection(self, query, missing_info):
+    def file_selection(self, query, missing_info, checked_files):
         all_files = os.listdir(self.output_path)  # List all files in the directory
         filtered_files = [
             f for f in all_files
@@ -182,20 +206,24 @@ class DataTransformer:
         else:
             action = "answer"
 
-        prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content)
-
-        response = self.client.chat.completions.create(
-            model=self.api_model,
-            messages=[
-                {"role": "user", "content": prompt}
+        prompt = RETRIEVER_FILE_SELECTION_TASK_DESC.format(action=action, query=query, filtered_files=filtered_files, missing_info=missing_info, readme_content=readme_content, checked_files=checked_files)
+        
+        response = self.client.models.generate_content(
+            contents=[
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": prompt}
+                    ]
+                }
             ]
         )
         
-        filename = response.choices[0].message.content.strip()
+        filename = response.text.strip()
 
         logging.info(f"Selected file: {filename}")
 
-        cost = response.usage.prompt_tokens * COST_DICT[self.api_model]["cost_per_input_token"] + response.usage.completion_tokens * COST_DICT[self.api_model]["cost_per_output_token"]
+        cost = calculate_gemini_cost(response, model_name=self.api_model)
         output_file = os.path.join(self.output_path, "output.json")
         with open(output_file, "r") as f:
             data = json.load(f)
@@ -215,13 +243,6 @@ class DataTransformer:
             image.save(buffer, format="JPEG")
             return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
-        # Initialize headers
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-            "OpenAI-Organization": self.org
-        }
-
         if self.task == "verification":
             action = "verify"
         else:
@@ -231,45 +252,58 @@ class DataTransformer:
         images = convert_from_path(f"{self.output_path}/{pdf_file}")
         page = 0
 
+        # gemini_model = configure_gemini_model(self.api_model)
+        
         cost = 0
         trace = ""
         while page < len(images):
             image = images[page]
             base64_image = encode_image(image)
+            
+            text_prompt = RETRIEVER_PDF_TASK_DESC.format(action=action, 
+                                                         query=query, 
+                                                         respond=respond, 
+                                                         missing_info=missing_info)
+            
+            content = types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_text(text=text_prompt),
+                    types.Part.from_bytes(
+                        data=base64.b64decode(base64_image),
+                        mime_type="image/jpeg"
+                    )
+                ]
+            )
+            try:
+                
+                # response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+                # response_json = response.json()
+                response = self.client.models.generate_content(
+                    contents=content,
+                    config=types.GenerateContentConfig(max_output_tokens=4096, 
+                                                  http_options=types.HttpOptions(timeout=600)
+                                                  ),
+                )
+                
+                if not response.parts:
+                    logging.info(f"Warning: Page {page} blocked by safety filters.")
+                    response_content = "Error: Analysis blocked due to safety content."
+                else:
+                    response_content = response.text
+                
+                trace += "\n" + response_content
+                cost += calculate_gemini_cost(response, model_name=self.api_model)
 
-            payload = {
-                "model": "gpt-4o",
-                "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                    {
-                        "type": "text",
-                        "text": RETRIEVER_PDF_TASK_DESC.format(action=action, query=query, respond=respond, missing_info=missing_info),
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                        "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
-                    }
-                    ]
-                }
-                ],
-                "max_tokens": 4096
-            }
+                if response_content[-1] == "#":
+                    break
+                
+            except Exception as e:
+                logging.error(f"Error processing page {page} of {pdf_file}: {e}")
+                response_content = "Error: API Request Failed"
 
-            response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-            response_json = response.json()
-
-            respond = response_json['choices'][0]['message']['content']
-            trace += "\n" + respond
-            cost += response_json["usage"]["prompt_tokens"] * COST_DICT["gpt-4o-2024-08-06"]["cost_per_input_token"] + response_json["usage"]["completion_tokens"] * COST_DICT["gpt-4o-2024-08-06"]["cost_per_output_token"]
-
-            if respond[-1] == "#":
-                break
-
-        match = re.search(r"```csv\n(.*?)\n```", respond, re.DOTALL)
+            
+        match = re.search(r"```csv\n(.*?)\n```", response_content, re.DOTALL)
         if match:
             csv_content = match.group(1)  # Extract content between the triple backticks
 
